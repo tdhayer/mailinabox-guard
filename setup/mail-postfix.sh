@@ -303,6 +303,56 @@ chmod +x /etc/cron.daily/mailinabox-postgrey-whitelist
 tools/editconf.py /etc/postfix/main.cf \
 	message_size_limit=134217728
 
+# Restore greylisting and spam settings from settings.yaml (set via admin GUI).
+# This ensures settings survive a re-setup or upgrade.
+if [ -f "$STORAGE_ROOT/settings.yaml" ]; then
+	# Check if greylisting was disabled via the admin panel.
+	GREYLISTING_ENABLED=$(python3 -c "
+import rtyaml
+try:
+    config = rtyaml.load(open('$STORAGE_ROOT/settings.yaml'))
+    enabled = config.get('spam', {}).get('greylisting_enabled')
+    if enabled is not None:
+        print('true' if enabled else 'false')
+except:
+    pass
+" 2>/dev/null)
+
+	if [ "$GREYLISTING_ENABLED" == "false" ]; then
+		# Remove postgrey from smtpd_recipient_restrictions.
+		CURRENT_RESTRICTIONS=$(postconf -h smtpd_recipient_restrictions)
+		NEW_RESTRICTIONS=$(echo "$CURRENT_RESTRICTIONS" | sed 's/,\?check_policy_service inet:127.0.0.1:10023//g' | sed 's/^,//' | sed 's/,,/,/g')
+		postconf "smtpd_recipient_restrictions=$NEW_RESTRICTIONS"
+	fi
+
+	# Restore greylisting delay if set.
+	GREYLISTING_DELAY=$(python3 -c "
+import rtyaml
+try:
+    config = rtyaml.load(open('$STORAGE_ROOT/settings.yaml'))
+    delay = config.get('spam', {}).get('greylisting_delay')
+    if delay is not None:
+        print(delay)
+except:
+    pass
+" 2>/dev/null)
+
+	if [ -n "$GREYLISTING_DELAY" ]; then
+		# Update the delay in the postgrey opts.
+		sed -i "s/--delay=[0-9]*/--delay=$GREYLISTING_DELAY/" /etc/default/postgrey
+	fi
+fi
+
+# If /etc/postfix/sender_access exists and has entries, wire it into
+# smtpd_sender_restrictions for hard-blocking of senders via the admin GUI.
+if [ -f /etc/postfix/sender_access ] && grep -q "REJECT" /etc/postfix/sender_access 2>/dev/null; then
+	postmap /etc/postfix/sender_access
+	CURRENT_SENDER_RESTRICTIONS=$(postconf -h smtpd_sender_restrictions)
+	if ! echo "$CURRENT_SENDER_RESTRICTIONS" | grep -q "check_sender_access hash:/etc/postfix/sender_access"; then
+		postconf "smtpd_sender_restrictions=check_sender_access hash:/etc/postfix/sender_access,$CURRENT_SENDER_RESTRICTIONS"
+	fi
+fi
+
 # Allow the two SMTP ports in the firewall.
 
 ufw_allow smtp
