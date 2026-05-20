@@ -191,6 +191,35 @@ chmod 770 "$STORAGE_ROOT/mail/spamassassin"
 # sa-learn --ham storage/mail/mailboxes/*/*/cur/
 # sa-learn --spam storage/mail/mailboxes/*/*/.Spam/cur/
 
+# Ensure the local_lists.cf file exists for admin-managed whitelist/blacklist entries.
+# SpamAssassin automatically includes all *.cf files in /etc/spamassassin/.
+if [ ! -f /etc/spamassassin/local_lists.cf ]; then
+	cat > /etc/spamassassin/local_lists.cf << EOF
+# Mail-in-a-Box SpamAssassin Whitelist/Blacklist
+# Managed by the admin control panel. Do not edit manually.
+EOF
+fi
+
+# Restore spam settings from settings.yaml if they were configured via the admin GUI.
+# This ensures settings survive a re-setup or upgrade.
+if [ -f "$STORAGE_ROOT/settings.yaml" ]; then
+	SPAM_THRESHOLD=$(python3 -c "
+import rtyaml, sys
+try:
+    config = rtyaml.load(open('$STORAGE_ROOT/settings.yaml'))
+    threshold = config.get('spam', {}).get('spamassassin_threshold')
+    if threshold is not None:
+        print(threshold)
+except:
+    pass
+" 2>/dev/null)
+
+	if [ -n "$SPAM_THRESHOLD" ]; then
+		tools/editconf.py /etc/spamassassin/local.cf -s \
+			"required_score=$SPAM_THRESHOLD"
+	fi
+fi
+
 # Kick services.
 restart_service spampd
 restart_service dovecot

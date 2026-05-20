@@ -1,0 +1,347 @@
+<style>
+#panel_spam .form-group { margin-bottom: 15px; }
+#panel_spam .panel { margin-bottom: 20px; }
+#panel_spam .list-table { width: 100%; }
+#panel_spam .list-table th { font-weight: bold; }
+#panel_spam .list-table td.entry-value { word-break: break-all; }
+#panel_spam .list-table td.entry-actions { width: 80px; text-align: center; }
+#panel_spam .threshold-labels { display: flex; justify-content: space-between; font-size: 85%; color: #888; margin-top: 2px; }
+#panel_spam .threshold-value { font-size: 150%; font-weight: bold; display: inline-block; min-width: 3em; text-align: center; }
+#panel_spam .threshold-desc { display: inline-block; font-size: 90%; color: #666; margin-left: 10px; }
+#panel_spam input[type=range] { width: 100%; }
+#panel_spam .greylist-warning { display: none; }
+#panel_spam .add-entry-form { margin-top: 10px; }
+#panel_spam .badge-count { font-size: 90%; margin-left: 5px; }
+</style>
+
+<div>
+	<h2>Spam &amp; Filtering</h2>
+
+	<p>Configure how your mail server handles spam and unwanted mail. Changes take effect immediately after saving.</p>
+
+	<!-- ============================================================ -->
+	<!-- SpamAssassin Settings -->
+	<!-- ============================================================ -->
+
+	<h3>SpamAssassin Spam Threshold</h3>
+
+	<p>SpamAssassin scores every incoming email. Messages scoring above the threshold are marked as spam and moved to the Spam folder. A lower threshold is more aggressive (catches more spam but may have false positives).</p>
+
+	<div class="form-group">
+		<div>
+			<span id="spam-threshold-value" class="threshold-value">5.0</span>
+			<span id="spam-threshold-desc" class="threshold-desc">Normal (recommended)</span>
+		</div>
+		<input type="range" id="spam-threshold-slider" min="1" max="10" step="0.5" value="5" oninput="update_threshold_display(this.value)">
+		<div class="threshold-labels">
+			<span>1 &mdash; Very Aggressive</span>
+			<span>5 &mdash; Normal</span>
+			<span>10 &mdash; Very Lenient</span>
+		</div>
+	</div>
+
+	<!-- ============================================================ -->
+	<!-- Greylisting -->
+	<!-- ============================================================ -->
+
+	<h3>Greylisting</h3>
+
+	<p>Greylisting temporarily rejects mail from unknown senders. Legitimate servers retry delivery after a short delay, but most spam sources do not. This is very effective at reducing spam but causes a small delivery delay for first-time senders.</p>
+
+	<div class="form-group">
+		<label>
+			<input type="checkbox" id="greylisting-enabled" onchange="toggle_greylisting_options()">
+			Enable greylisting
+		</label>
+	</div>
+
+	<div id="greylisting-warning" class="alert alert-warning greylist-warning">
+		<strong>Warning:</strong> Greylisting is disabled. Your server will accept all incoming mail without the initial reject-and-retry check. This may result in significantly more spam.
+	</div>
+
+	<div id="greylisting-options">
+		<div class="form-group">
+			<label for="greylisting-delay">Greylisting delay (seconds):</label>
+			<input type="number" class="form-control" id="greylisting-delay" min="60" max="600" value="180" style="width: 10em;">
+			<p class="help-block">How long (in seconds) a new sender must wait before their mail is accepted. Default is 180 seconds (3 minutes). Lower values reduce the delay but may let more spam through.</p>
+		</div>
+	</div>
+
+	<div class="form-group">
+		<button type="button" class="btn btn-primary" onclick="save_spam_settings()">Save Settings</button>
+	</div>
+
+	<!-- ============================================================ -->
+	<!-- Whitelists & Blacklists -->
+	<!-- ============================================================ -->
+
+	<h3>Whitelists &amp; Blacklists</h3>
+
+	<p>Control which senders are trusted, flagged as spam, allowed to bypass greylisting, or blocked entirely.</p>
+
+	<!-- SpamAssassin Whitelist -->
+	<div class="panel panel-default">
+		<div class="panel-heading">
+			<h4 style="margin: 0">SpamAssassin Whitelist <span id="sa-whitelist-count" class="badge badge-count"></span></h4>
+		</div>
+		<div class="panel-body">
+			<p>Mail from these senders will <strong>never</strong> be marked as spam. Use email addresses (<code>user@example.com</code>) or wildcard patterns (<code>*@example.com</code>).</p>
+			<table class="table list-table" id="sa-whitelist-table">
+				<thead>
+					<tr>
+						<th scope="col">Sender Pattern</th>
+						<th scope="col" class="entry-actions">Actions</th>
+					</tr>
+				</thead>
+				<tbody>
+				</tbody>
+			</table>
+			<form class="form-inline add-entry-form" onsubmit="return add_list_entry('spamassassin-whitelist', '#sa-whitelist-input');">
+				<div class="form-group">
+					<label class="sr-only" for="sa-whitelist-input">Add sender</label>
+					<input type="text" class="form-control" id="sa-whitelist-input" placeholder="user@example.com or *@example.com">
+				</div>
+				<button type="submit" class="btn btn-success btn-sm">Add to Whitelist</button>
+			</form>
+		</div>
+	</div>
+
+	<!-- SpamAssassin Blacklist -->
+	<div class="panel panel-default">
+		<div class="panel-heading">
+			<h4 style="margin: 0">SpamAssassin Blacklist <span id="sa-blacklist-count" class="badge badge-count"></span></h4>
+		</div>
+		<div class="panel-body">
+			<p>Mail from these senders will <strong>always</strong> be marked as spam and delivered to the Spam folder. Use email addresses or wildcard patterns.</p>
+			<table class="table list-table" id="sa-blacklist-table">
+				<thead>
+					<tr>
+						<th scope="col">Sender Pattern</th>
+						<th scope="col" class="entry-actions">Actions</th>
+					</tr>
+				</thead>
+				<tbody>
+				</tbody>
+			</table>
+			<form class="form-inline add-entry-form" onsubmit="return add_list_entry('spamassassin-blacklist', '#sa-blacklist-input');">
+				<div class="form-group">
+					<label class="sr-only" for="sa-blacklist-input">Add sender</label>
+					<input type="text" class="form-control" id="sa-blacklist-input" placeholder="spammer@example.com or *@spamdomain.com">
+				</div>
+				<button type="submit" class="btn btn-warning btn-sm">Add to Blacklist</button>
+			</form>
+		</div>
+	</div>
+
+	<!-- Greylisting Bypass (Postgrey Whitelist) -->
+	<div class="panel panel-default">
+		<div class="panel-heading">
+			<h4 style="margin: 0">Greylisting Bypass <span id="postgrey-whitelist-count" class="badge badge-count"></span></h4>
+		</div>
+		<div class="panel-body">
+			<p>Mail from these domains or IP addresses will <strong>skip greylisting</strong> and be accepted immediately, with no retry delay. An upstream whitelist of well-known senders is maintained automatically; these are your custom additions.</p>
+			<table class="table list-table" id="postgrey-whitelist-table">
+				<thead>
+					<tr>
+						<th scope="col">Domain / IP</th>
+						<th scope="col" class="entry-actions">Actions</th>
+					</tr>
+				</thead>
+				<tbody>
+				</tbody>
+			</table>
+			<form class="form-inline add-entry-form" onsubmit="return add_list_entry('postgrey-whitelist', '#postgrey-whitelist-input');">
+				<div class="form-group">
+					<label class="sr-only" for="postgrey-whitelist-input">Add domain or IP</label>
+					<input type="text" class="form-control" id="postgrey-whitelist-input" placeholder="example.com or 10.0.0.0/8">
+				</div>
+				<button type="submit" class="btn btn-success btn-sm">Add to Bypass List</button>
+			</form>
+		</div>
+	</div>
+
+	<!-- Postfix Blocked Senders -->
+	<div class="panel panel-danger">
+		<div class="panel-heading">
+			<h4 style="margin: 0">Blocked Senders <span id="postfix-blocked-count" class="badge badge-count"></span></h4>
+		</div>
+		<div class="panel-body">
+			<p>Mail from these senders is <strong>rejected entirely</strong> at the server level &mdash; it will never be delivered. Use this for known bad actors. Use email addresses (<code>user@example.com</code>) or entire domains (<code>@spamdomain.com</code>).</p>
+			<table class="table list-table" id="postfix-blocked-table">
+				<thead>
+					<tr>
+						<th scope="col">Sender</th>
+						<th scope="col" class="entry-actions">Actions</th>
+					</tr>
+				</thead>
+				<tbody>
+				</tbody>
+			</table>
+			<form class="form-inline add-entry-form" onsubmit="return add_list_entry('postfix-blocked', '#postfix-blocked-input');">
+				<div class="form-group">
+					<label class="sr-only" for="postfix-blocked-input">Add sender</label>
+					<input type="text" class="form-control" id="postfix-blocked-input" placeholder="spammer@evil.com or @spamdomain.com">
+				</div>
+				<button type="submit" class="btn btn-danger btn-sm">Block Sender</button>
+			</form>
+		</div>
+	</div>
+</div>
+
+<script>
+
+function show_spam() {
+	// Fetch spam settings and lists in parallel.
+	api(
+		"/spam/settings",
+		"GET",
+		{},
+		function(settings) {
+			// Populate threshold slider.
+			$('#spam-threshold-slider').val(settings.spamassassin_threshold);
+			update_threshold_display(settings.spamassassin_threshold);
+
+			// Populate greylisting controls.
+			$('#greylisting-enabled').prop('checked', settings.greylisting_enabled);
+			$('#greylisting-delay').val(settings.greylisting_delay);
+			toggle_greylisting_options();
+		}
+	);
+
+	api(
+		"/spam/lists",
+		"GET",
+		{},
+		function(lists) {
+			render_list_table('#sa-whitelist-table', '#sa-whitelist-count', lists.spamassassin_whitelist, 'spamassassin-whitelist');
+			render_list_table('#sa-blacklist-table', '#sa-blacklist-count', lists.spamassassin_blacklist, 'spamassassin-blacklist');
+			render_list_table('#postgrey-whitelist-table', '#postgrey-whitelist-count', lists.postgrey_whitelist, 'postgrey-whitelist');
+			render_list_table('#postfix-blocked-table', '#postfix-blocked-count', lists.postfix_blocked_senders, 'postfix-blocked');
+		}
+	);
+}
+
+function update_threshold_display(value) {
+	value = parseFloat(value);
+	$('#spam-threshold-value').text(value.toFixed(1));
+
+	var desc = '';
+	if (value <= 2.0) desc = 'Very Aggressive — may catch legitimate mail';
+	else if (value <= 3.5) desc = 'Aggressive';
+	else if (value <= 5.5) desc = 'Normal (recommended)';
+	else if (value <= 7.5) desc = 'Lenient — more spam may get through';
+	else desc = 'Very Lenient — most spam will get through';
+
+	$('#spam-threshold-desc').text(desc);
+}
+
+function toggle_greylisting_options() {
+	var enabled = $('#greylisting-enabled').is(':checked');
+	if (enabled) {
+		$('#greylisting-options').show();
+		$('#greylisting-warning').hide();
+	} else {
+		$('#greylisting-options').hide();
+		$('#greylisting-warning').show();
+	}
+}
+
+function save_spam_settings() {
+	var data = {
+		spamassassin_threshold: $('#spam-threshold-slider').val(),
+		greylisting_enabled: $('#greylisting-enabled').is(':checked') ? 'true' : 'false',
+		greylisting_delay: $('#greylisting-delay').val()
+	};
+
+	api(
+		"/spam/settings",
+		"POST",
+		data,
+		function(r) {
+			show_modal_error("Spam Settings", "Settings saved successfully. Changes are now active.");
+		},
+		function(r) {
+			show_modal_error("Spam Settings", r);
+		}
+	);
+	return false;
+}
+
+// -----------------------------------------------------------------------
+// List rendering and CRUD
+// -----------------------------------------------------------------------
+
+function render_list_table(table_selector, count_selector, entries, list_type) {
+	var tbody = $(table_selector + ' tbody');
+	tbody.html('');
+
+	$(count_selector).text(entries.length > 0 ? entries.length : '');
+
+	if (entries.length === 0) {
+		tbody.append('<tr><td colspan="2" class="text-muted">No entries.</td></tr>');
+		return;
+	}
+
+	for (var i = 0; i < entries.length; i++) {
+		var entry = entries[i];
+		var tr = $('<tr>');
+		tr.append($('<td class="entry-value">').text(entry));
+		var remove_btn = $('<a href="#" class="btn btn-xs btn-danger" title="Remove">remove</a>');
+		remove_btn.attr('data-entry', entry);
+		remove_btn.attr('data-list-type', list_type);
+		remove_btn.on('click', function(e) {
+			e.preventDefault();
+			var btn = $(this);
+			remove_list_entry(btn.attr('data-list-type'), btn.attr('data-entry'));
+		});
+		tr.append($('<td class="entry-actions">').append(remove_btn));
+		tbody.append(tr);
+	}
+}
+
+function add_list_entry(list_type, input_selector) {
+	var entry = $(input_selector).val().trim();
+	if (!entry) {
+		show_modal_error("Add Entry", "Please enter a value.");
+		return false;
+	}
+
+	api(
+		"/spam/lists/" + list_type + "/add",
+		"POST",
+		{ entry: entry },
+		function(r) {
+			$(input_selector).val('');
+			// Refresh the lists.
+			show_spam();
+		},
+		function(r) {
+			show_modal_error("Add Entry", r);
+		}
+	);
+	return false;
+}
+
+function remove_list_entry(list_type, entry) {
+	show_modal_confirm(
+		"Remove Entry",
+		"Are you sure you want to remove <b>" + entry + "</b>?",
+		"Remove",
+		function() {
+			api(
+				"/spam/lists/" + list_type + "/remove",
+				"POST",
+				{ entry: entry },
+				function(r) {
+					show_spam();
+				},
+				function(r) {
+					show_modal_error("Remove Entry", r);
+				}
+			);
+		}
+	);
+	return false;
+}
+
+</script>

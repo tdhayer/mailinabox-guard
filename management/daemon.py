@@ -23,6 +23,11 @@ from mailconfig import get_mail_user_privileges, add_remove_mail_user_privilege
 from mailconfig import get_mail_aliases, get_mail_aliases_ex, get_mail_domains, add_mail_alias, remove_mail_alias
 from mailconfig import get_mail_quota, set_mail_quota
 from mfa import get_public_mfa_state, provision_totp, validate_totp_secret, enable_mfa, disable_mfa
+from spamconfig import get_spam_config, set_spam_config, get_spam_lists, \
+	add_spamassassin_whitelist, remove_spamassassin_whitelist, \
+	add_spamassassin_blacklist, remove_spamassassin_blacklist, \
+	add_postgrey_whitelist, remove_postgrey_whitelist, \
+	add_postfix_blocked_sender, remove_postfix_blocked_sender
 import contextlib
 
 env = utils.load_environment()
@@ -276,6 +281,94 @@ def mail_aliases_remove():
 @authorized_personnel_only
 def mail_domains():
     return "".join(x+"\n" for x in get_mail_domains(env))
+
+# SPAM & FILTERING
+
+@app.route('/spam/settings')
+@authorized_personnel_only
+def spam_get_settings():
+	return json_response(get_spam_config(env))
+
+@app.route('/spam/settings', methods=['POST'])
+@authorized_personnel_only
+def spam_set_settings():
+	try:
+		return set_spam_config(env,
+			threshold=request.form.get('spamassassin_threshold'),
+			greylisting_enabled=request.form.get('greylisting_enabled'),
+			greylisting_delay=request.form.get('greylisting_delay'),
+		)
+	except ValueError as e:
+		return (str(e), 400)
+
+@app.route('/spam/lists')
+@authorized_personnel_only
+def spam_get_lists():
+	return json_response(get_spam_lists(env))
+
+@app.route('/spam/lists/spamassassin-whitelist/add', methods=['POST'])
+@authorized_personnel_only
+def spam_sa_whitelist_add():
+	try:
+		return add_spamassassin_whitelist(request.form.get('entry', ''), env)
+	except ValueError as e:
+		return (str(e), 400)
+
+@app.route('/spam/lists/spamassassin-whitelist/remove', methods=['POST'])
+@authorized_personnel_only
+def spam_sa_whitelist_remove():
+	try:
+		return remove_spamassassin_whitelist(request.form.get('entry', ''), env)
+	except ValueError as e:
+		return (str(e), 400)
+
+@app.route('/spam/lists/spamassassin-blacklist/add', methods=['POST'])
+@authorized_personnel_only
+def spam_sa_blacklist_add():
+	try:
+		return add_spamassassin_blacklist(request.form.get('entry', ''), env)
+	except ValueError as e:
+		return (str(e), 400)
+
+@app.route('/spam/lists/spamassassin-blacklist/remove', methods=['POST'])
+@authorized_personnel_only
+def spam_sa_blacklist_remove():
+	try:
+		return remove_spamassassin_blacklist(request.form.get('entry', ''), env)
+	except ValueError as e:
+		return (str(e), 400)
+
+@app.route('/spam/lists/postgrey-whitelist/add', methods=['POST'])
+@authorized_personnel_only
+def spam_postgrey_whitelist_add():
+	try:
+		return add_postgrey_whitelist(request.form.get('entry', ''), env)
+	except ValueError as e:
+		return (str(e), 400)
+
+@app.route('/spam/lists/postgrey-whitelist/remove', methods=['POST'])
+@authorized_personnel_only
+def spam_postgrey_whitelist_remove():
+	try:
+		return remove_postgrey_whitelist(request.form.get('entry', ''), env)
+	except ValueError as e:
+		return (str(e), 400)
+
+@app.route('/spam/lists/postfix-blocked/add', methods=['POST'])
+@authorized_personnel_only
+def spam_postfix_blocked_add():
+	try:
+		return add_postfix_blocked_sender(request.form.get('entry', ''), env)
+	except ValueError as e:
+		return (str(e), 400)
+
+@app.route('/spam/lists/postfix-blocked/remove', methods=['POST'])
+@authorized_personnel_only
+def spam_postfix_blocked_remove():
+	try:
+		return remove_postfix_blocked_sender(request.form.get('entry', ''), env)
+	except ValueError as e:
+		return (str(e), 400)
 
 # DNS
 
