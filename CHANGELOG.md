@@ -1,6 +1,26 @@
 CHANGELOG
 =========
 
+Version 75-guard (May 21, 2026)
+-------------------------------
+
+Mail-in-a-Box Guard first release (Forked from upstream Version 75).
+
+Security & Hardening:
+* Hardened Multi-Factor Authentication: Added YubiKey & Passkey (WebAuthn) support to the control panel, allowing administrators to secure logins with physical keys and biometrics.
+* System Service Auditing: Enhanced status checks to alert on insecure SSH daemon configuration and general hardening issues.
+* Dependency Security Upgrades: Modernized internal dependencies including `webauthn>=2.7.0`, `cryptography>=44.0.2`, and `cbor2<6.0.0`.
+
+Interactive Administration UI:
+* Brand New System Metrics Dashboard: Created a real-time system resources dashboard showing CPU, RAM, Disk, and Mail Queue statistics.
+* Traffic Flow Analytics: Integrated interactive Chart.js line charts in the dashboard showing mail volume (Sent, Received, and Blocked) over the last 24 hours.
+* Unified Firewall Controller: Exposed Fail2ban jail status, active ban count, and currently banned IP lists directly in the admin panel, allowing manual ban/unban commands.
+* Centralized Server Logs Viewer: Built a browser-based log reader with pagination, log type selection (syslog, mail, nginx, fail2ban), and realtime search/filtering.
+
+Edge Configuration Toggles:
+* Postfix Network Routing Controls: Added panel settings to easily switch Postfix bindings and outbound transport preferences between IPv4 and IPv6 to mitigate cloud VPS network blocking.
+* Advanced Spam Management: Added control panel toggles for greylisting activation, custom greylisting delay times, and SpamAssassin spam threshold scoring.
+
 Version 75 (April 20, 2026)
 ---------------------------
 

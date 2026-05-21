@@ -1,0 +1,136 @@
+<h2>Logs &amp; Search</h2>
+<p class="text-muted">Inspect and query real-time system logs directly from the server. Enter a query to filter output.</p>
+
+<div class="panel">
+	<div class="panel-heading">
+		<h3>Log Console</h3>
+	</div>
+	<div class="panel-body">
+		<!-- Search and Settings Controls -->
+		<form id="log-search-form" onsubmit="return fetch_system_logs();" style="margin-bottom: 1.5rem;">
+			<div class="row">
+				<div class="col-md-3">
+					<div class="form-group">
+						<label for="log-select-type">Log Target:</label>
+						<select id="log-select-type" class="form-control" onchange="fetch_system_logs();">
+							<option value="mail">Mail Log (/var/log/mail.log)</option>
+							<option value="syslog">System Log (/var/log/syslog)</option>
+							<option value="fail2ban">Fail2ban Log (/var/log/fail2ban.log)</option>
+							<option value="nginx_access">Web Traffic Log (Nginx Access)</option>
+							<option value="nginx_error">Web Error Log (Nginx Error)</option>
+						</select>
+					</div>
+				</div>
+				<div class="col-md-2">
+					<div class="form-group">
+						<label for="log-select-lines">Fetch Lines:</label>
+						<select id="log-select-lines" class="form-control" onchange="fetch_system_logs();">
+							<option value="100">Last 100 lines</option>
+							<option value="250">Last 250 lines</option>
+							<option value="500" selected>Last 500 lines</option>
+							<option value="1000">Last 1000 lines</option>
+							<option value="2000">Last 2000 lines</option>
+						</select>
+					</div>
+				</div>
+				<div class="col-md-5">
+					<div class="form-group">
+						<label for="log-filter-query">Search / Filter Logs:</label>
+						<div class="input-group">
+							<input type="text" id="log-filter-query" class="form-control" placeholder="Search keywords (e.g. rejected, ban, error)...">
+							<span class="input-group-btn">
+								<button class="btn btn-primary" type="submit">
+									<span class="fa fa-search"></span> Search
+								</button>
+							</span>
+						</div>
+					</div>
+				</div>
+				<div class="col-md-2">
+					<div class="form-group">
+						<label>&nbsp;</label>
+						<button type="button" class="btn btn-default btn-block" onclick="$('#log-filter-query').val(''); fetch_system_logs();">
+							Clear
+						</button>
+					</div>
+				</div>
+			</div>
+		</form>
+
+		<!-- Console Log Display -->
+		<div class="log-console" id="log-display-console">
+			<div class="text-muted text-center" style="margin-top: 100px;">Console ready. Click search or select a target to load logs.</div>
+		</div>
+		
+		<div style="margin-top: 1rem; display: flex; justify-content: space-between; align-items: center;">
+			<div class="text-muted" id="console-status-text">Lines displayed: 0</div>
+			<button type="button" class="btn btn-default btn-xs" onclick="fetch_system_logs();">
+				<span class="fa fa-refresh"></span> Refresh Console
+			</button>
+		</div>
+	</div>
+</div>
+
+<script>
+function show_logs() {
+	fetch_system_logs();
+}
+
+function fetch_system_logs() {
+	var logType = $('#log-select-type').val();
+	var lines = $('#log-select-lines').val();
+	var query = $('#log-filter-query').val().trim();
+
+	$('#log-display-console').html('<div class="text-center text-muted" style="margin-top: 100px;"><span class="fa fa-spinner fa-pulse fa-2x"></span><br><br>Retrieving logs...</div>');
+
+	api("/system/logs?log_type=" + logType + "&lines=" + lines + "&filter=" + encodeURIComponent(query), "GET", {}, function(data) {
+		var consoleDiv = $('#log-display-console');
+		consoleDiv.empty();
+
+		if (!data.lines || data.lines.length === 0) {
+			consoleDiv.html('<div class="text-center text-muted" style="margin-top: 100px;">No matching log lines found.</div>');
+			$('#console-status-text').text('Lines displayed: 0');
+			return;
+		}
+
+		var htmlContent = '';
+		$.each(data.lines, function(idx, line) {
+			var cleanLine = escapeHtml(line);
+			var typeClass = '';
+
+			// Basic syntax highlighting rules
+			var lowerLine = cleanLine.toLowerCase();
+			if (lowerLine.indexOf('error') !== -1 || lowerLine.indexOf('fail') !== -1 || lowerLine.indexOf('reject') !== -1 || lowerLine.indexOf('ban') !== -1) {
+				typeClass = ' log-line-error';
+			} else if (lowerLine.indexOf('warning') !== -1 || lowerLine.indexOf('warn') !== -1) {
+				typeClass = ' log-line-warning';
+			} else if (query && lowerLine.indexOf(query.toLowerCase()) !== -1) {
+				typeClass = ' log-line-highlight';
+			}
+
+			htmlContent += '<div class="log-line' + typeClass + '">' + cleanLine + '</div>';
+		});
+
+		consoleDiv.html(htmlContent);
+		$('#console-status-text').text('Lines displayed: ' + data.lines.length);
+
+		// Scroll to bottom of console automatically
+		setTimeout(function() {
+			consoleDiv.scrollTop(consoleDiv[0].scrollHeight);
+		}, 50);
+	}, function(err) {
+		$('#log-display-console').html('<div class="text-center text-danger" style="margin-top: 100px;">Failed to fetch logs: ' + escapeHtml(err) + '</div>');
+	});
+
+	return false;
+}
+
+function escapeHtml(text) {
+	return text
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#039;");
+}
+</script>

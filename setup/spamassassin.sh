@@ -204,8 +204,8 @@ fi
 # This ensures settings survive a re-setup or upgrade.
 if [ -f "$STORAGE_ROOT/settings.yaml" ]; then
 	SPAM_THRESHOLD=$(python3 -c "
-import rtyaml, sys
 try:
+    import rtyaml, sys
     config = rtyaml.load(open('$STORAGE_ROOT/settings.yaml'))
     threshold = config.get('spam', {}).get('spamassassin_threshold')
     if threshold is not None:

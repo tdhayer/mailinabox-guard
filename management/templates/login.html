@@ -149,8 +149,10 @@ function do_login() {
                   response: {
                       authenticatorData: bufferToBase64url(cred.response.authenticatorData),
                       clientDataJSON: bufferToBase64url(cred.response.clientDataJSON),
-                      signature: bufferToBase64url(cred.response.signature)
-                  }
+                      signature: bufferToBase64url(cred.response.signature),
+                      userHandle: cred.response.userHandle ? bufferToBase64url(cred.response.userHandle) : null
+                  },
+                  clientExtensionResults: cred.getClientExtensionResults ? cred.getClientExtensionResults() : {}
               };
               
               $('#loginOtpInput').val("webauthn:" + JSON.stringify(response_data));

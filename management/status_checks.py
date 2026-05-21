@@ -158,6 +158,116 @@ def run_system_checks(rounded_values, env, output):
 	check_free_disk_space(rounded_values, env, output)
 	check_free_memory(rounded_values, env, output)
 	check_backup(rounded_values, env, output)
+	check_ssh_hardening(env, output)
+	check_tls_hardening(env, output)
+	check_fail2ban_hardening(env, output)
+
+def check_ssh_hardening(env, output):
+	# 1. Check Root Login setting
+	root_login = get_ssh_config_value("permitrootlogin")
+	if root_login:
+		root_login = root_login.lower().strip()
+		if root_login == "yes":
+			output.print_warning("The SSH server permits root login with password authentication. It is recommended to restrict this to key-based login ('PermitRootLogin prohibit-password') or disable it entirely ('PermitRootLogin no') in /etc/ssh/sshd_config.")
+		elif root_login in {"prohibit-password", "without-password"}:
+			output.print_ok("SSH root login is restricted to public-key authentication only.")
+		elif root_login == "no":
+			output.print_ok("SSH root login is disabled.")
+		else:
+			output.print_warning(f"SSH root login is configured as '{root_login}'. Ensure this is intended.")
+	else:
+		output.print_warning("Could not determine SSH PermitRootLogin configuration.")
+
+	# 2. Check for weak SSH Ciphers / MACs
+	ciphers = get_ssh_config_value("ciphers")
+	if ciphers:
+		weak_ciphers_found = []
+		weak_patterns = ["3des", "blowfish", "cast128", "arcfour", "cbc"]
+		for cipher in ciphers.split():
+			cipher_lower = cipher.lower()
+			if any(pat in cipher_lower for pat in weak_patterns):
+				weak_ciphers_found.append(cipher)
+		if weak_ciphers_found:
+			output.print_warning("SSH daemon allows weak/legacy ciphers: " + ", ".join(weak_ciphers_found) + ". It is recommended to restrict SSH to modern algorithms like chacha20-poly1305@openssh.com or aes256-gcm@openssh.com.")
+		else:
+			output.print_ok("SSH ciphers configuration is hardened.")
+
+	macs = get_ssh_config_value("macs")
+	if macs:
+		weak_macs_found = []
+		weak_mac_patterns = ["md5", "sha1-96", "md5-96"]
+		for mac in macs.split():
+			mac_lower = mac.lower()
+			if any(pat in mac_lower for pat in weak_mac_patterns):
+				weak_macs_found.append(mac)
+		if weak_macs_found:
+			output.print_warning("SSH daemon allows weak MAC algorithms: " + ", ".join(weak_macs_found) + ". It is recommended to use HMACs based on SHA-2 (e.g. hmac-sha2-256, hmac-sha2-512).")
+
+def check_tls_hardening(env, output):
+	nginx_conf_path = "/etc/nginx/nginx.conf"
+	ssl_conf_path = "/etc/nginx/conf.d/ssl.conf"
+
+	# Simple helper to read Nginx configuration block
+	def extract_nginx_directive(file_path, directive):
+		if not os.path.exists(file_path):
+			return None
+		try:
+			with open(file_path, "r", encoding="utf-8") as f:
+				content = f.read()
+			pattern = r"\b" + re.escape(directive) + r"\s+([^;]+);"
+			match = re.search(pattern, content, re.IGNORECASE)
+			if match:
+				return match.group(1).strip()
+		except Exception:
+			pass
+		return None
+
+	protocols = extract_nginx_directive(nginx_conf_path, "ssl_protocols") or extract_nginx_directive(ssl_conf_path, "ssl_protocols")
+	if protocols:
+		proto_list = [p.strip().lower() for p in protocols.replace(";", "").split() if p.strip()]
+		weak_protos = [p for p in proto_list if p in {"sslv2", "sslv3", "tlsv1", "tlsv1.1"}]
+		if weak_protos:
+			output.print_warning("Nginx TLS configuration permits insecure protocols: " + ", ".join(weak_protos) + ". It is recommended to allow only TLSv1.2 and TLSv1.3.")
+		else:
+			output.print_ok("Nginx TLS protocols are configured securely (only modern TLS allowed).")
+	else:
+		output.print_warning("Could not determine Nginx ssl_protocols configuration.")
+
+	ciphers = extract_nginx_directive(ssl_conf_path, "ssl_ciphers") or extract_nginx_directive(nginx_conf_path, "ssl_ciphers")
+	if ciphers:
+		cipher_list = [c.strip() for c in ciphers.replace(":", " ").replace(";", "").split() if c.strip()]
+		weak_ciphers = []
+		weak_patterns = ["rc4", "3des", "des", "md5", "null", "export", "anon"]
+		for cipher in cipher_list:
+			cipher_lower = cipher.lower()
+			if any(pat in cipher_lower for pat in weak_patterns):
+				weak_ciphers.append(cipher)
+		if weak_ciphers:
+			output.print_warning("Nginx TLS configuration permits weak/vulnerable ciphers: " + ", ".join(weak_ciphers) + ". It is recommended to update ssl_ciphers to strong suites.")
+		else:
+			output.print_ok("Nginx TLS cipher suites are configured securely.")
+	else:
+		output.print_warning("Could not determine Nginx ssl_ciphers configuration.")
+
+def check_fail2ban_hardening(env, output):
+	code, status_out = shell('check_output', ["fail2ban-client", "status"], capture_stderr=True, trap=True)
+	if code != 0:
+		output.print_error("Fail2ban is not running. Intrusion prevention is disabled.")
+		return
+	
+	m = re.search(r"Jail list:\s+(.*)", status_out)
+	if m:
+		jails = [j.strip() for j in m.group(1).split(",") if j.strip()]
+		if not jails:
+			output.print_warning("Fail2ban is running, but no active jails are configured to protect system services.")
+		else:
+			sshd_protected = any("ssh" in j.lower() for j in jails)
+			if sshd_protected:
+				output.print_ok("Fail2ban is active and protecting SSH: " + ", ".join(jails))
+			else:
+				output.print_warning("Fail2ban is active but SSH daemon is not protected (active jails: " + ", ".join(jails) + ").")
+	else:
+		output.print_warning("Fail2ban is running, but active jails could not be parsed.")
 
 def check_ufw(env, output):
 	if not os.path.isfile('/usr/sbin/ufw'):

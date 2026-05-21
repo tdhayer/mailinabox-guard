@@ -1,111 +1,85 @@
-# mailinabox-guard
+# Mail-in-a-Box Guard
 
-A security-focused fork of the open-source Mail-in-a-Box project, designed for administrators who need advanced edge control and hardened authentication.
+A security-focused, modernized fork of the open-source [Mail-in-a-Box](https://github.com/mail-in-a-box/mailinabox) project, designed for administrators who need advanced edge controls, unified logs, active firewall integration, and hardened hardware authentication.
 
-### Key Enhancements:
-* **Hardware Authentication**: Secure the admin panel with YubiKey and modern Passkey support.
-* **Advanced Spam Control**: A new dedicated GUI to manage greylisting, blacklists, and whitelisting at the network edge.
-* **Routing Management**: System-level toggles to easily switch Postfix bindings and outbound preferences between IPv4 and IPv6 to bypass cloud blocklists.
+Original project by [@JoshData](https://github.com/JoshData) and [contributors](https://github.com/mail-in-a-box/mailinabox/graphs/contributors). Fork maintained by [@tdhayer](https://github.com/tdhayer).
 
 ---
 
-Mail-in-a-Box
-=============
+## Key Enhancements & Features
 
-By [@JoshData](https://github.com/JoshData) and [contributors](https://github.com/mail-in-a-box/mailinabox/graphs/contributors).
+Mail-in-a-Box Guard expands on the original ease-of-use philosophy by providing enterprise-grade system visibility and defense-in-depth directly from the control panel:
 
-Mail-in-a-Box helps individuals take back control of their email by defining a one-click, easy-to-deploy SMTP+everything else server: a mail server in a box.
+### 1. Hardened Multi-Factor Authentication (MFA)
+* **YubiKey & Passkey (WebAuthn) Support**: Go beyond standard passwords. Register hardware security keys or built-in biometric authenticators directly in the administration panel.
+* **Fallback Options**: Configure standard TOTP (Time-based One-Time Passwords) as a backup method.
 
-**Please see [https://mailinabox.email](https://mailinabox.email) for the project's website and setup guide!**
+### 2. Live Admin Dashboard & System Telemetry
+* **Realtime Metrics**: Instant overview of CPU, memory, and disk usage.
+* **Mail Queue Monitor**: Track pending outbound deliveries with queue counter gauges.
+* **Interactive Traffic Flow Charts**: Visual charts mapping out received, sent, and blocked mail counts over time, built with Chart.js.
 
-* * *
+### 3. Integrated Firewall & Intrusion Prevention
+* **Fail2ban GUI**: View active jails, jail health status, and real-time ban counters.
+* **Active Blocking Controls**: Directly inspect lists of banned IP addresses, and manually ban or unban addresses with a single click in the UI.
 
-Our goals are to:
+### 4. Unified System Log Viewer
+* **Secure Console Interface**: Read system logs (syslog, mail logs, nginx logs, and fail2ban logs) directly from the control panel.
+* **Interactive Search**: Search, filter, and paginate through log entries in reverse chronological order for swift debugging.
 
-* Make deploying a good mail server easy.
-* Promote [decentralization](http://redecentralize.org/), innovation, and privacy on the web.
-* Have automated, auditable, and [idempotent](https://web.archive.org/web/20190518072631/https://sharknet.us/2014/02/01/automated-configuration-management-challenges-with-idempotency/) configuration.
-* **Not** make a totally unhackable, NSA-proof server.
-* **Not** make something customizable by power users.
+### 5. Outbound Delivery Preference (IPv4/IPv6 Toggles)
+* **Network Bindings**: Toggle Postfix preference to prefer or force IPv4/IPv6 for outgoing mail.
+* **Delivery Routing**: Easily route outbound mail to bypass aggressive IPv6 spam blacklists on cloud VPS networks.
 
-Additionally, this project has a [Code of Conduct](CODE_OF_CONDUCT.md), which supersedes the goals above. Please review it when joining our community.
+### 6. Edge Spam Controls
+* **Granular Spam tuning**: Manage greylisting settings, modify greylisting delays, and customize SpamAssassin score thresholds to dynamically tune spam rejection rates.
 
+---
 
-In The Box
-----------
+## In The Box
 
-Mail-in-a-Box turns a fresh Ubuntu 22.04 LTS 64-bit machine into a working mail server by installing and configuring various components.
+Mail-in-a-Box Guard configures a fresh Ubuntu 22.04 LTS 64-bit machine into a hardened mail appliance:
 
-It is a one-click email appliance. There are no user-configurable setup options. It "just works."
+* **SMTP** ([Postfix](http://www.postfix.org/)), **IMAP** ([Dovecot](http://dovecot.org/)), **CardDAV/CalDAV** ([Nextcloud](https://nextcloud.com/)), and **Exchange ActiveSync** ([z-push](http://z-push.org/))
+* **Webmail** ([Roundcube](http://roundcube.net/)) with mail filtering rules and autoconfiguration profiles served by [Nginx](http://nginx.org/)
+* **Spam Protection**: [SpamAssassin](https://spamassassin.apache.org/) and greylisting via [Postgrey](http://postgrey.schweikert.ch/)
+* **DNS Server** ([nsd4](https://www.nlnetlabs.nl/projects/nsd/)) with automatic SPF, DKIM ([OpenDKIM](http://www.opendkim.org/)), DMARC, DNSSEC, DANE TLSA, MTA-STS, and SSHFP policy records
+* **TLS Certificates**: Automatically generated and renewed via [Let's Encrypt](https://letsencrypt.org/)
+* **Backups** ([Duplicity](http://duplicity.nongnu.org/)), firewall ([ufw](https://launchpad.net/ufw)), intrusion prevention ([fail2ban](http://www.fail2ban.org/)), and system status reporting
 
-The components installed are:
+---
 
-* SMTP ([postfix](http://www.postfix.org/)), IMAP ([Dovecot](http://dovecot.org/)), CardDAV/CalDAV ([Nextcloud](https://nextcloud.com/)), and Exchange ActiveSync ([z-push](http://z-push.org/)) servers
-* Webmail ([Roundcube](http://roundcube.net/)), mail filter rules (thanks to Roundcube and Dovecot), and email client autoconfig settings (served by [nginx](http://nginx.org/))
-* Spam filtering ([spamassassin](https://spamassassin.apache.org/)) and greylisting ([postgrey](http://postgrey.schweikert.ch/))
-* DNS ([nsd4](https://www.nlnetlabs.nl/projects/nsd/)) with [SPF](https://en.wikipedia.org/wiki/Sender_Policy_Framework), DKIM ([OpenDKIM](http://www.opendkim.org/)), [DMARC](https://en.wikipedia.org/wiki/DMARC), [DNSSEC](https://en.wikipedia.org/wiki/DNSSEC), [DANE TLSA](https://en.wikipedia.org/wiki/DNS-based_Authentication_of_Named_Entities), [MTA-STS](https://tools.ietf.org/html/rfc8461), and [SSHFP](https://tools.ietf.org/html/rfc4255) policy records automatically set
-* TLS certificates are automatically provisioned using [Let's Encrypt](https://letsencrypt.org/) for protecting https and all of the other services on the box
-* Backups ([duplicity](http://duplicity.nongnu.org/)), firewall ([ufw](https://launchpad.net/ufw)), intrusion protection ([fail2ban](http://www.fail2ban.org/wiki/index.php/Main_Page)), and basic system monitoring ([munin](http://munin-monitoring.org/))
+## Installation
 
-It also includes system management tools:
+See the setup guide on the original [Mail-in-a-Box website](https://mailinabox.email/guide.html) for general prerequisites.
 
-* Comprehensive health monitoring that checks each day that services are running, ports are open, TLS certificates are valid, and DNS records are correct
-* A control panel for adding/removing mail users, aliases, custom DNS records, configuring backups, etc.
-* An API for all of the actions on the control panel
+Start with a completely fresh, vanilla **Ubuntu 22.04 LTS 64-bit** server. On the server:
 
-Internationalized domain names are supported and configured easily (but SMTPUTF8 is not supported, unfortunately).
+1. Clone this fork repository:
+   ```bash
+   git clone https://github.com/tdhayer/mailinabox-guard.git
+   cd mailinabox-guard
+   ```
 
-It also supports static website hosting since the box is serving HTTPS anyway. (To serve a website for your domains elsewhere, just add a custom DNS "A" record in you Mail-in-a-Box's control panel to point domains to another server.)
+2. Run the interactive setup:
+   ```bash
+   sudo setup/start.sh
+   ```
 
-For more information on how Mail-in-a-Box handles your privacy, see the [security details page](security.md).
+The script will automatically install necessary packages, configure services, and establish the administration daemon.
 
+---
 
-Installation
-------------
+## Support & Contributing
 
-See the [setup guide](https://mailinabox.email/guide.html) for detailed, user-friendly instructions.
+* **Bugs & Issues**: Please report issues specific to the Guard edition on the [GitHub Issues](https://github.com/tdhayer/mailinabox-guard/issues) page.
+* **Contributing**: Development takes place on GitHub. Check out the [Contributing Guidelines](CONTRIBUTING.md) to get started.
 
-For experts, start with a completely fresh (really, I mean it) Ubuntu 22.04 LTS 64-bit machine. On the machine...
+---
 
-Clone this repository and checkout the tag corresponding to the most recent release (which you can find in the tags or releases lists on GitHub):
+## License & History
 
-	$ git clone https://github.com/mail-in-a-box/mailinabox
-	$ cd mailinabox
-	$ git checkout TAGNAME
+This project is in the public domain and is dedicated to the public domain through the [CC0 1.0 Universal Waiver](LICENSE). 
 
-Begin the installation.
-
-	$ sudo setup/start.sh
-
-The installation will install, uninstall, and configure packages to turn the machine into a working, good mail server.
-
-For help, DO NOT contact Josh directly --- I don't do tech support by email or tweet (no exceptions).
-
-Post your question on the [discussion forum](https://discourse.mailinabox.email/) instead, where maintainers and Mail-in-a-Box users may be able to help you.
-
-Note that while we want everything to "just work," we can't control the rest of the Internet. Other mail services might block or spam-filter email sent from your Mail-in-a-Box.
-This is a challenge faced by everyone who runs their own mail server, with or without Mail-in-a-Box. See our discussion forum for tips about that.
-
-
-Contributing and Development
-----------------------------
-
-Mail-in-a-Box is an open source project. Your contributions and pull requests are welcome. See [CONTRIBUTING](CONTRIBUTING.md) to get started. 
-
-
-The Acknowledgements
---------------------
-
-This project was inspired in part by the ["NSA-proof your email in 2 hours"](http://sealedabstract.com/code/nsa-proof-your-e-mail-in-2-hours/) blog post by Drew Crawford, [Sovereign](https://github.com/sovereign/sovereign) by Alex Payne, and conversations with <a href="https://twitter.com/shevski" target="_blank">@shevski</a>, <a href="https://github.com/konklone" target="_blank">@konklone</a>, and <a href="https://github.com/gregelin" target="_blank">@GregElin</a>.
-
-Mail-in-a-Box is similar to [iRedMail](http://www.iredmail.org/) and [Modoboa](https://github.com/tonioo/modoboa).
-
-
-The History
------------
-
-* In 2007 I wrote a relatively popular Mozilla Thunderbird extension that added client-side SPF and DKIM checks to mail to warn users about possible phishing: [add-on page](https://addons.mozilla.org/en-us/thunderbird/addon/sender-verification-anti-phish/), [source](https://github.com/JoshData/thunderbird-spf).
-* In August 2013 I began Mail-in-a-Box by combining my own mail server configuration with the setup in ["NSA-proof your email in 2 hours"](http://sealedabstract.com/code/nsa-proof-your-e-mail-in-2-hours/) and making the setup steps reproducible with bash scripts.
-* Mail-in-a-Box was a semifinalist in the 2014 [Knight News Challenge](https://www.newschallenge.org/challenge/2014/submissions/mail-in-a-box), but it was not selected as a winner.
-* Mail-in-a-Box hit the front page of Hacker News in [April](https://news.ycombinator.com/item?id=7634514) 2014, [September](https://news.ycombinator.com/item?id=8276171) 2014, [May](https://news.ycombinator.com/item?id=9624267) 2015, and [November](https://news.ycombinator.com/item?id=13050500) 2016.
-* FastCompany mentioned Mail-in-a-Box a [roundup of privacy projects](http://www.fastcompany.com/3047645/your-own-private-cloud) on June 26, 2015.
+### Acknowledgements
+This project is built upon the wonderful foundation of [Mail-in-a-Box](https://github.com/mail-in-a-box/mailinabox) by Josh Tauberer, inspired by Alex Payne's Sovereign and Drew Crawford's "NSA-proof your email in 2 hours" guide.

@@ -5,16 +5,20 @@ import os
 import pyotp
 import qrcode
 import json
+import sys
 
 from mailconfig import open_database
 
+WEBAUTHN_IMPORT_ERROR = None
 try:
 	from webauthn import generate_registration_options, verify_registration_response, generate_authentication_options, verify_authentication_response, options_to_json
 	from webauthn.helpers.structs import PublicKeyCredentialDescriptor, AuthenticatorSelectionCriteria, AuthenticatorAttachment
 	from webauthn.helpers import bytes_to_base64url, base64url_to_bytes
 	WEBAUTHN_AVAILABLE = True
-except ImportError:
+except Exception as e:
+	WEBAUTHN_IMPORT_ERROR = str(e)
 	WEBAUTHN_AVAILABLE = False
+	print(f"[mfa] WARNING: WebAuthn library not available: {e}", file=sys.stderr, flush=True)
 
 def get_user_id(email, c):
 	c.execute('SELECT id FROM users WHERE email=?', (email,))
@@ -183,13 +187,24 @@ def validate_auth_mfa(email, request, env, auth_service=None):
 
 	webauthn_devices = [m for m in mfa_state if m["type"] == "webauthn"]
 
+	# If user has webauthn devices registered but the library isn't available,
+	# we cannot just silently fail. Log the error and provide a clear message.
+	if webauthn_devices and not WEBAUTHN_AVAILABLE:
+		print(f"[mfa] ERROR: User {email} has WebAuthn MFA but library is unavailable: {WEBAUTHN_IMPORT_ERROR}", file=sys.stderr, flush=True)
+		# Check if user also has TOTP — if so, allow TOTP fallback
+		totp_devices = [m for m in mfa_state if m["type"] == "totp"]
+		if not totp_devices:
+			# No fallback available — user is locked out
+			return (False, ["webauthn-library-unavailable"])
+
 	# Try the enabled MFA modes.
 	hints = set()
+	token = request.headers.get('x-auth-token')
+	
 	for mfa_mode in mfa_state:
 		if mfa_mode["type"] == "totp":
 			# Check that a token is present in the X-Auth-Token header.
 			# If not, give a hint that one can be supplied.
-			token = request.headers.get('x-auth-token')
 			if not token:
 				hints.add("missing-totp-token")
 				continue
@@ -211,23 +226,27 @@ def validate_auth_mfa(email, request, env, auth_service=None):
 			return (True, [])
 			
 		elif mfa_mode["type"] == "webauthn" and WEBAUTHN_AVAILABLE:
-			token = request.headers.get('x-auth-token')
 			if not token or not token.startswith("webauthn:"):
 				# Will handle challenge generation below after checking all modes
 				pass
 			else:
-				# Verify token
+				# Verify the WebAuthn token
 				try:
-					response_data = json.loads(token.split("webauthn:", 1)[1])
+					webauthn_payload = token.split("webauthn:", 1)[1]
+					response_data = json.loads(webauthn_payload)
+					
 					# To verify, we need the auth_service challenge
-					challenge = auth_service.webauthn_challenges.get(email)
+					challenge = auth_service.webauthn_challenges.get(email) if auth_service else None
 					if not challenge:
+						print(f"[mfa] WebAuthn verify failed for {email}: no challenge stored (expired or missing)", file=sys.stderr, flush=True)
 						hints.add("invalid-webauthn-token")
 						continue
 						
 					cred_id = response_data.get("id")
 					device = next((m for m in webauthn_devices if json.loads(m["secret"])["credential_id"] == cred_id), None)
 					if not device:
+						stored_ids = [json.loads(m["secret"])["credential_id"] for m in webauthn_devices]
+						print(f"[mfa] WebAuthn verify failed for {email}: credential_id mismatch. Got={cred_id}, Stored={stored_ids}", file=sys.stderr, flush=True)
 						hints.add("invalid-webauthn-token")
 						continue
 						
@@ -251,13 +270,15 @@ def validate_auth_mfa(email, request, env, auth_service=None):
 					
 					del auth_service.webauthn_challenges[email]
 					return (True, [])
-				except Exception:
+				except Exception as e:
+					print(f"[mfa] WebAuthn verify exception for {email}: {type(e).__name__}: {e}", file=sys.stderr, flush=True)
+					import traceback
+					traceback.print_exc(file=sys.stderr)
 					hints.add("invalid-webauthn-token")
 					continue
 
 	# If we have webauthn modes and need a challenge
 	if webauthn_devices and WEBAUTHN_AVAILABLE:
-		token = request.headers.get('x-auth-token')
 		if not token or not token.startswith("webauthn:"):
 			allow_credentials = [
 				PublicKeyCredentialDescriptor(id=base64url_to_bytes(json.loads(m["secret"])["credential_id"]))
