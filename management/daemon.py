@@ -297,6 +297,10 @@ def spam_set_settings():
 			threshold=request.form.get('spamassassin_threshold'),
 			greylisting_enabled=request.form.get('greylisting_enabled'),
 			greylisting_delay=request.form.get('greylisting_delay'),
+			spamhaus_dqs_key=request.form.get('spamhaus_dqs_key'),
+			spamhaus_zen=request.form.get('spamhaus_zen_enabled'),
+			spamhaus_dbl=request.form.get('spamhaus_dbl_enabled'),
+			spamhaus_zrd=request.form.get('spamhaus_zrd_enabled'),
 		)
 	except ValueError as e:
 		return (str(e), 400)
@@ -760,6 +764,37 @@ def privacy_status_set():
 	config = utils.load_settings(env)
 	config["privacy"] = (request.form.get('value') == "private")
 	utils.write_settings(config, env)
+	return "OK"
+
+@app.route('/system/services/postfix', methods=["GET"])
+@authorized_personnel_only
+def get_system_services_postfix():
+	inet_protocols = utils.shell("check_output", ["postconf", "-h", "inet_protocols"]).strip()
+	try:
+		smtp_address_preference = utils.shell("check_output", ["postconf", "-h", "smtp_address_preference"], trap=True)[1].strip()
+		if not smtp_address_preference:
+			smtp_address_preference = 'any'
+	except Exception:
+		smtp_address_preference = 'any'
+	return json_response({ "inet_protocols": inet_protocols, "smtp_address_preference": smtp_address_preference })
+
+@app.route('/system/services/postfix', methods=["POST"])
+@authorized_personnel_only
+def set_system_services_postfix():
+	inet_protocols = request.form.get('inet_protocols')
+	smtp_address_preference = request.form.get('smtp_address_preference')
+	
+	if inet_protocols not in ('all', 'ipv4', 'ipv6'):
+		return ("Invalid value for inet_protocols", 400)
+	if smtp_address_preference not in ('any', 'ipv4', 'ipv6'):
+		return ("Invalid value for smtp_address_preference", 400)
+		
+	try:
+		utils.shell("check_call", ["postconf", "-e", f"inet_protocols = {inet_protocols}"])
+		utils.shell("check_call", ["postconf", "-e", f"smtp_address_preference = {smtp_address_preference}"])
+		utils.shell("check_call", ["service", "postfix", "restart"])
+	except Exception as e:
+		return (str(e), 500)
 	return "OK"
 
 # MUNIN

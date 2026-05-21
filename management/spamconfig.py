@@ -27,9 +27,13 @@ def get_spam_config(env):
 		"spamassassin_threshold": _get_spamassassin_threshold(),
 		"greylisting_enabled": _is_greylisting_enabled(),
 		"greylisting_delay": _get_greylisting_delay(),
+		"spamhaus_dqs_key": _get_spam_setting("spamhaus_dqs_key", ""),
+		"spamhaus_zen_enabled": _get_spam_setting("spamhaus_zen_enabled", True),
+		"spamhaus_dbl_enabled": _get_spam_setting("spamhaus_dbl_enabled", True),
+		"spamhaus_zrd_enabled": _get_spam_setting("spamhaus_zrd_enabled", False),
 	}
 
-def set_spam_config(env, threshold=None, greylisting_enabled=None, greylisting_delay=None):
+def set_spam_config(env, threshold=None, greylisting_enabled=None, greylisting_delay=None, spamhaus_dqs_key=None, spamhaus_zen=None, spamhaus_dbl=None, spamhaus_zrd=None):
 	"""Apply spam configuration changes and restart affected services."""
 	msgs = []
 
@@ -52,14 +56,27 @@ def set_spam_config(env, threshold=None, greylisting_enabled=None, greylisting_d
 		_set_greylisting_enabled(enabled)
 		msgs.append("Greylisting {}.".format("enabled" if enabled else "disabled"))
 
+	postfix_needs_restart = False
+	if spamhaus_dqs_key is not None or spamhaus_zen is not None or spamhaus_dbl is not None or spamhaus_zrd is not None:
+		postfix_needs_restart = True
+		if spamhaus_dqs_key is not None:
+			key = spamhaus_dqs_key.strip()
+			if key and not re.match(r"^[a-zA-Z0-9]+$", key):
+				raise ValueError("Spamhaus DQS API key must be alphanumeric.")
+
 	# Persist to settings.yaml so setup scripts can restore.
-	_save_spam_settings_to_yaml(env, threshold, greylisting_enabled, greylisting_delay)
+	_save_spam_settings_to_yaml(env, threshold, greylisting_enabled, greylisting_delay, spamhaus_dqs_key, spamhaus_zen, spamhaus_dbl, spamhaus_zrd)
+
+	if postfix_needs_restart:
+		_apply_postfix_spamhaus_rules(env)
 
 	# Restart affected services.
 	if threshold is not None:
 		_restart_service("spampd")
 	if greylisting_enabled is not None or greylisting_delay is not None:
 		_restart_service("postgrey")
+		_restart_service("postfix")
+	elif postfix_needs_restart:
 		_restart_service("postfix")
 
 	return " ".join(msgs) if msgs else "OK"
@@ -163,7 +180,55 @@ def _set_greylisting_delay(delay, env):
 			f.write(new_content)
 
 
-def _save_spam_settings_to_yaml(env, threshold, greylisting_enabled, greylisting_delay):
+def _get_spam_setting(key, default_val):
+	"""Read a direct value from settings.yaml."""
+	env = utils.load_environment()
+	config = utils.load_settings(env)
+	return config.get("spam", {}).get(key, default_val)
+
+
+def _apply_postfix_spamhaus_rules(env):
+	"""Apply or remove the Spamhaus rules in Postfix smtpd restrictions based on yaml settings."""
+	try:
+		recip = utils.shell("check_output", ["postconf", "-h", "smtpd_recipient_restrictions"]).strip()
+		sender = utils.shell("check_output", ["postconf", "-h", "smtpd_sender_restrictions"]).strip()
+	except (subprocess.CalledProcessError, FileNotFoundError):
+		return
+		
+	config = utils.load_settings(env).get("spam", {})
+	key = config.get("spamhaus_dqs_key", "").strip()
+	zen_enabled = config.get("spamhaus_zen_enabled", True)
+	dbl_enabled = config.get("spamhaus_dbl_enabled", True)
+	zrd_enabled = config.get("spamhaus_zrd_enabled", False)
+	
+	# Strip existing Spamhaus RBL rules
+	recip = re.sub(r',?\s*reject_rbl_client [a-zA-Z0-9\.]*zen\.(dq\.)?spamhaus\.(org|net)[^\,]*', '', recip)
+	sender = re.sub(r',?\s*reject_rhsbl_sender [a-zA-Z0-9\.]*dbl\.(dq\.)?spamhaus\.(org|net)[^\,]*', '', sender)
+	sender = re.sub(r',?\s*reject_rhsbl_sender [a-zA-Z0-9\.]*zrd\.(dq\.)?spamhaus\.(org|net)[^\,]*', '', sender)
+	
+	zen_target = f"{key}.zen.dq.spamhaus.net" if key else "zen.spamhaus.org"
+	dbl_target = f"{key}.dbl.dq.spamhaus.net" if key else "dbl.spamhaus.org"
+	zrd_target = f"{key}.zrd.dq.spamhaus.net" if key else "zrd.spamhaus.org"
+	
+	if zen_enabled:
+		parts = [p.strip() for p in recip.split(',') if p.strip()]
+		try:
+			idx = parts.index("reject_unlisted_recipient")
+		except ValueError:
+			idx = len(parts)
+		parts.insert(idx, f"reject_rbl_client {zen_target}=127.0.0.[2..11]")
+		recip = ", ".join(parts)
+	
+	if dbl_enabled:
+		sender += f", reject_rhsbl_sender {dbl_target}=127.0.1.[2..99]"
+	if zrd_enabled:
+		sender += f", reject_rhsbl_sender {zrd_target}=127.0.2.[2..24]"
+	
+	utils.shell("check_call", ["postconf", f"smtpd_recipient_restrictions={recip}"])
+	utils.shell("check_call", ["postconf", f"smtpd_sender_restrictions={sender}"])
+
+
+def _save_spam_settings_to_yaml(env, threshold, greylisting_enabled, greylisting_delay, spamhaus_dqs_key, spamhaus_zen, spamhaus_dbl, spamhaus_zrd):
 	"""Persist spam settings to settings.yaml."""
 	config = utils.load_settings(env)
 	spam = config.get("spam", {})
@@ -175,6 +240,14 @@ def _save_spam_settings_to_yaml(env, threshold, greylisting_enabled, greylisting
 		spam["greylisting_enabled"] = enabled
 	if greylisting_delay is not None:
 		spam["greylisting_delay"] = int(greylisting_delay)
+	if spamhaus_dqs_key is not None:
+		spam["spamhaus_dqs_key"] = spamhaus_dqs_key.strip()
+	if spamhaus_zen is not None:
+		spam["spamhaus_zen_enabled"] = (spamhaus_zen if isinstance(spamhaus_zen, bool) else (spamhaus_zen.lower() == "true"))
+	if spamhaus_dbl is not None:
+		spam["spamhaus_dbl_enabled"] = (spamhaus_dbl if isinstance(spamhaus_dbl, bool) else (spamhaus_dbl.lower() == "true"))
+	if spamhaus_zrd is not None:
+		spam["spamhaus_zrd_enabled"] = (spamhaus_zrd if isinstance(spamhaus_zrd, bool) else (spamhaus_zrd.lower() == "true"))
 
 	config["spam"] = spam
 	utils.write_settings(config, env)
