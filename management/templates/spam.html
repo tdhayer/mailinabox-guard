@@ -67,6 +67,45 @@
 		</div>
 	</div>
 
+	<!-- ============================================================ -->
+	<!-- Spamhaus Data Query Service -->
+	<!-- ============================================================ -->
+
+	<h3>Spamhaus Data Query Service (DQS)</h3>
+
+	<p>Mail-in-a-Box uses Spamhaus DNS blocklists to filter spam. Public DNS resolvers (like Cloudflare's 1.1.1.1 or Google's 8.8.8.8) are blocked by Spamhaus. If your server queries Spamhaus through a public resolver, large amounts of spam will bypass the filter.</p>
+	<p>You can create a free <a href="https://www.spamhaus.com/product/data-query-service/" target="_blank">Spamhaus DQS account</a> and enter your API Key below to securely query Spamhaus and bypass public resolver blocks.</p>
+
+	<div class="form-group">
+		<label for="spamhaus-dqs-key">DQS API Key:</label>
+		<input type="text" class="form-control" id="spamhaus-dqs-key" placeholder="Leave blank to use the public zen.spamhaus.org mirror" style="width: 30em;">
+		<p class="help-block">This key will be automatically configured in Postfix to reject spam at the network level.</p>
+	</div>
+
+	<div class="form-group">
+		<label>
+			<input type="checkbox" id="spamhaus-zen-enabled">
+			Enable Spamhaus ZEN (IP/Network Reputation)
+		</label>
+		<p class="help-block" style="margin-left: 20px;">Blocks mail originating from known spam networks, compromised botnets, and dial-up IPs. Highly recommended.</p>
+	</div>
+
+	<div class="form-group">
+		<label>
+			<input type="checkbox" id="spamhaus-dbl-enabled">
+			Enable Spamhaus DBL (Domain Blocklist)
+		</label>
+		<p class="help-block" style="margin-left: 20px;">Blocks mail based on the domain name reputation in the envelope sender (MAIL FROM). Highly recommended.</p>
+	</div>
+
+	<div class="form-group">
+		<label>
+			<input type="checkbox" id="spamhaus-zrd-enabled">
+			Enable Spamhaus ZRD (Zero Reputation Domain)
+		</label>
+		<p class="help-block" style="margin-left: 20px;">Blocks mail from brand new domains registered within the last 24 hours. Very effective against fly-by-night spammers, but may cause false positives for legitimate newly registered organizations.</p>
+	</div>
+
 	<div class="form-group">
 		<button type="button" class="btn btn-primary" onclick="save_spam_settings()">Save Settings</button>
 	</div>
@@ -205,6 +244,12 @@ function show_spam() {
 			$('#greylisting-enabled').prop('checked', settings.greylisting_enabled);
 			$('#greylisting-delay').val(settings.greylisting_delay);
 			toggle_greylisting_options();
+			
+			// Populate Spamhaus DQS key and toggles
+			$('#spamhaus-dqs-key').val(settings.spamhaus_dqs_key || '');
+			$('#spamhaus-zen-enabled').prop('checked', settings.spamhaus_zen_enabled !== false);
+			$('#spamhaus-dbl-enabled').prop('checked', settings.spamhaus_dbl_enabled !== false);
+			$('#spamhaus-zrd-enabled').prop('checked', settings.spamhaus_zrd_enabled === true);
 		}
 	);
 
@@ -250,7 +295,11 @@ function save_spam_settings() {
 	var data = {
 		spamassassin_threshold: $('#spam-threshold-slider').val(),
 		greylisting_enabled: $('#greylisting-enabled').is(':checked') ? 'true' : 'false',
-		greylisting_delay: $('#greylisting-delay').val()
+		greylisting_delay: $('#greylisting-delay').val(),
+		spamhaus_dqs_key: $('#spamhaus-dqs-key').val().trim(),
+		spamhaus_zen_enabled: $('#spamhaus-zen-enabled').is(':checked') ? 'true' : 'false',
+		spamhaus_dbl_enabled: $('#spamhaus-dbl-enabled').is(':checked') ? 'true' : 'false',
+		spamhaus_zrd_enabled: $('#spamhaus-zrd-enabled').is(':checked') ? 'true' : 'false'
 	};
 
 	api(

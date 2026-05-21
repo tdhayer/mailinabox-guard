@@ -1,0 +1,80 @@
+<style>
+#panel_system_services .form-group { margin-bottom: 15px; }
+#panel_system_services .panel { margin-bottom: 20px; }
+</style>
+
+<div>
+	<h2>System Services</h2>
+
+	<p>Configure advanced settings for the underlying system services. Changes take effect immediately after saving.</p>
+
+	<!-- ============================================================ -->
+	<!-- Postfix Settings -->
+	<!-- ============================================================ -->
+
+	<h3>Postfix (Mail Server)</h3>
+
+	<p>Configure network protocols used by the mail server. Separating incoming and outgoing protocol preferences can help you maintain IPv6 connectivity while avoiding aggressive IPv6 anti-spam blocklists when sending.</p>
+
+	<div class="form-group">
+		<label for="postfix-inet-protocols">Global / Incoming Protocols:</label>
+		<select id="postfix-inet-protocols" class="form-control" style="width: auto;">
+			<option value="all">IPv4 and IPv6 (all)</option>
+			<option value="ipv4">IPv4 only</option>
+			<option value="ipv6">IPv6 only</option>
+		</select>
+		<p class="help-block">Select whether Postfix should support both IPv4 and IPv6 globally.</p>
+	</div>
+
+	<div class="form-group">
+		<label for="postfix-smtp-preference">Outgoing Delivery Preference:</label>
+		<select id="postfix-smtp-preference" class="form-control" style="width: auto;">
+			<option value="any">No preference (any)</option>
+			<option value="ipv4">Prefer IPv4</option>
+			<option value="ipv6">Prefer IPv6</option>
+		</select>
+		<p class="help-block">Select whether Postfix should prefer a specific protocol when sending outbound mail. "Prefer IPv4" will always use IPv4 if the receiving server supports it, but can fall back to IPv6 if necessary.</p>
+	</div>
+
+	<div class="form-group">
+		<button type="button" class="btn btn-primary" onclick="save_system_services_settings()">Save Settings</button>
+	</div>
+
+</div>
+
+<script>
+
+function show_system_services() {
+	// Fetch system services settings.
+	api(
+		"/system/services/postfix",
+		"GET",
+		{},
+		function(settings) {
+			$('#postfix-inet-protocols').val(settings.inet_protocols);
+			$('#postfix-smtp-preference').val(settings.smtp_address_preference);
+		}
+	);
+}
+
+function save_system_services_settings() {
+	var data = {
+		inet_protocols: $('#postfix-inet-protocols').val(),
+		smtp_address_preference: $('#postfix-smtp-preference').val()
+	};
+
+	api(
+		"/system/services/postfix",
+		"POST",
+		data,
+		function(r) {
+			show_modal_error("System Services", "Settings saved successfully. Changes are now active.");
+		},
+		function(r) {
+			show_modal_error("System Services", r);
+		}
+	);
+	return false;
+}
+
+</script>
