@@ -86,6 +86,26 @@ sudo management/cli.py user make-admin me@{{hostname}}</pre>
 </div>
 
 <script>
+
+function bufferToBase64url(buffer) {
+    var bytes = new Uint8Array(buffer);
+    var str = "";
+    for (var i = 0; i < bytes.byteLength; i++) {
+        str += String.fromCharCode(bytes[i]);
+    }
+    return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+}
+
+function base64urlToBuffer(base64url) {
+    var b64 = base64url.replace(/-/g, "+").replace(/_/g, "/");
+    var str = atob(b64);
+    var bytes = new Uint8Array(str.length);
+    for (var i = 0; i < str.length; i++) {
+        bytes[i] = str.charCodeAt(i);
+    }
+    return bytes.buffer;
+}
+
 function do_login() {
   if ($('#loginEmail').val() == "") {
     show_modal_error("Login Failed", "Enter your email address.", function() {
@@ -112,9 +132,36 @@ function do_login() {
     // This API call always succeeds. It returns a JSON object indicating
     // whether the request was authenticated or not.
     if (response.status != 'ok') {
-      if (response.status === 'missing-totp-token' || (response.status === 'invalid' && response.reason == 'invalid-totp-token')) {
+      if (response.status === 'missing-webauthn-token') {
+          var options = response.options;
+          options.challenge = base64urlToBuffer(options.challenge);
+          if (options.allowCredentials) {
+              options.allowCredentials.forEach(function(cred) {
+                  cred.id = base64urlToBuffer(cred.id);
+              });
+          }
+          
+          navigator.credentials.get({ publicKey: options }).then(function(cred) {
+              var response_data = {
+                  id: cred.id,
+                  rawId: bufferToBase64url(cred.rawId),
+                  type: cred.type,
+                  response: {
+                      authenticatorData: bufferToBase64url(cred.response.authenticatorData),
+                      clientDataJSON: bufferToBase64url(cred.response.clientDataJSON),
+                      signature: bufferToBase64url(cred.response.signature)
+                  }
+              };
+              
+              $('#loginOtpInput').val("webauthn:" + JSON.stringify(response_data));
+              do_login();
+          }).catch(function(err) {
+              show_modal_error("Login Failed", "Security key authentication failed or was cancelled.");
+              do_logout();
+          });
+      } else if (response.status === 'missing-totp-token' || (response.status === 'invalid' && response.reason == 'invalid-totp-token') || response.reason == 'invalid-webauthn-token') {
         $('#loginForm').addClass('is-twofactor');
-        if (response.reason === "invalid-totp-token") {
+        if (response.reason === "invalid-totp-token" || response.reason === "invalid-webauthn-token") {
           show_modal_error("Login Failed", "Incorrect two factor authentication token.");
         } else {
           setTimeout(() => {
