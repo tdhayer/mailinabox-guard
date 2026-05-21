@@ -22,7 +22,7 @@ from mailconfig import get_mail_users, get_mail_users_ex, get_admins, add_mail_u
 from mailconfig import get_mail_user_privileges, add_remove_mail_user_privilege
 from mailconfig import get_mail_aliases, get_mail_aliases_ex, get_mail_domains, add_mail_alias, remove_mail_alias
 from mailconfig import get_mail_quota, set_mail_quota
-from mfa import get_public_mfa_state, provision_totp, validate_totp_secret, enable_mfa, disable_mfa
+from mfa import get_public_mfa_state, provision_totp, validate_totp_secret, enable_mfa, disable_mfa, provision_webauthn, register_webauthn
 from spamconfig import get_spam_config, set_spam_config, get_spam_lists, \
 	add_spamassassin_whitelist, remove_spamassassin_whitelist, \
 	add_spamassassin_blacklist, remove_spamassassin_blacklist, \
@@ -151,6 +151,12 @@ def login():
 			return json_response({
 				"status": "missing-totp-token",
 				"reason": str(e),
+			})
+		if "missing-webauthn-token" in str(e):
+			challenge_json = str(e).split("missing-webauthn-token:")[1]
+			return json_response({
+				"status": "missing-webauthn-token",
+				"options": json.loads(challenge_json),
 			})
 		# Log the failed login
 		log_failed_login(request)
@@ -600,6 +606,28 @@ def mfa_get_status():
 	except ValueError as e:
 		return (str(e), 400)
 	return json_response(resp)
+
+@app.route('/mfa/webauthn/register/begin', methods=['POST'])
+@authorized_personnel_only
+def mfa_webauthn_register_begin():
+	try:
+		email = request.user_email
+		options = provision_webauthn(email, env, auth_service)
+		return json_response(options)
+	except ValueError as e:
+		return (str(e), 400)
+
+@app.route('/mfa/webauthn/register/complete', methods=['POST'])
+@authorized_personnel_only
+def mfa_webauthn_register_complete():
+	try:
+		email = request.user_email
+		response_data = json.loads(request.form.get("response_data", "{}"))
+		label = request.form.get("label", "Security Key")
+		register_webauthn(email, response_data, label, env, auth_service)
+		return ("OK", 200)
+	except ValueError as e:
+		return (str(e), 400)
 
 @app.route('/mfa/totp/enable', methods=['POST'])
 @authorized_personnel_only

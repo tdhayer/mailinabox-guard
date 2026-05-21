@@ -1004,6 +1004,8 @@ def check_miab_version(env, output):
 
 		if this_ver == latest_ver:
 			output.print_ok(f"Mail-in-a-Box is up to date. You are running version {this_ver}.")
+		elif latest_ver is not None and this_ver.startswith(latest_ver + "-"):
+			output.print_ok(f"Mail-in-a-Box is up to date (running custom local fork based on {latest_ver}). You are running version {this_ver}.")
 		elif latest_ver is None:
 			output.print_error(f"Latest Mail-in-a-Box version could not be determined. You are running version {this_ver}.")
 		else:

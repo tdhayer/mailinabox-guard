@@ -18,6 +18,7 @@ class AuthService:
 
 		self.init_system_api_key()
 		self.sessions = ExpiringDict(max_len=64, max_age_seconds=self.max_session_duration.total_seconds())
+		self.webauthn_challenges = ExpiringDict(max_len=64, max_age_seconds=120)
 
 	def init_system_api_key(self):
 		"""Write an API key to a local file so local processes can use the API"""
@@ -121,7 +122,7 @@ class AuthService:
 			raise ValueError(msg)
 
 		# If MFA is enabled, check that MFA passes.
-		status, hints = validate_auth_mfa(email, request, env)
+		status, hints = validate_auth_mfa(email, request, env, self)
 		if not status:
 			# Login valid. Hints may have more info.
 			raise ValueError(",".join(hints))
