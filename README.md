@@ -1,3 +1,14 @@
+# mailinabox-guard
+
+A security-focused fork of the open-source Mail-in-a-Box project, designed for administrators who need advanced edge control and hardened authentication.
+
+### Key Enhancements:
+* **Hardware Authentication**: Secure the admin panel with YubiKey and modern Passkey support.
+* **Advanced Spam Control**: A new dedicated GUI to manage greylisting, blacklists, and whitelisting at the network edge.
+* **Routing Management**: System-level toggles to easily switch Postfix bindings and outbound preferences between IPv4 and IPv6 to bypass cloud blocklists.
+
+---
+
 Mail-in-a-Box
 =============
 
