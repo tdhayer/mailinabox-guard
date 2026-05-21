@@ -308,8 +308,8 @@ tools/editconf.py /etc/postfix/main.cf \
 if [ -f "$STORAGE_ROOT/settings.yaml" ]; then
 	# Check if greylisting was disabled via the admin panel.
 	GREYLISTING_ENABLED=$(python3 -c "
-import rtyaml
 try:
+    import rtyaml
     config = rtyaml.load(open('$STORAGE_ROOT/settings.yaml'))
     enabled = config.get('spam', {}).get('greylisting_enabled')
     if enabled is not None:
@@ -327,8 +327,8 @@ except:
 
 	# Restore greylisting delay if set.
 	GREYLISTING_DELAY=$(python3 -c "
-import rtyaml
 try:
+    import rtyaml
     config = rtyaml.load(open('$STORAGE_ROOT/settings.yaml'))
     delay = config.get('spam', {}).get('greylisting_delay')
     if delay is not None:

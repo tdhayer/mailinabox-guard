@@ -66,30 +66,9 @@
             .if-logged-in { display: none; }
             .if-logged-in-admin { display: none; }
 
-      /* The below only gets used if it is supported */
-      @media (prefers-color-scheme: dark) {
-        /* Invert invert lightness but not hue */
-        html {
-          filter: invert(100%) hue-rotate(180deg);
-        }
-
-        /* Override Bootstrap theme here to give more contrast. The black turns to white by the filter. */
-        .form-control {
-          color: black !important;
-        }
-
-        /* Revert the invert for the navbar */
-        button, div.navbar {
-          filter: invert(100%) hue-rotate(180deg);
-        }
-
-        /* Revert the revert for the dropdowns */
-        ul.dropdown-menu {
-          filter: invert(100%) hue-rotate(180deg);
-        }
-      }
         </style>
         <link rel="stylesheet" href="/admin/assets/bootstrap/css/bootstrap-theme.min.css">
+        <link rel="stylesheet" href="/admin/custom.css">
     </head>
     <body>
 
@@ -109,12 +88,15 @@
         </div>
         <div class="navbar-collapse collapse">
           <ul class="nav navbar-nav">
+            <li class="if-logged-in-admin"><a href="#welcome">Dashboard</a></li>
             <li class="dropdown if-logged-in-admin">
               <a href="#" class="dropdown-toggle" data-toggle="dropdown">System <b class="caret"></b></a>
               <ul class="dropdown-menu">
                 <li><a href="#system_status">Status Checks</a></li>
                 <li><a href="#tls">TLS (SSL) Certificates</a></li>
                 <li><a href="#system_backup">Backup Status</a></li>
+                <li><a href="#firewall">Firewall &amp; Fail2ban</a></li>
+                <li><a href="#logs">Logs &amp; Search</a></li>
                 <li class="divider"></li>
                 <li class="dropdown-header">Advanced Pages</li>
                 <li><a href="#custom_dns">Custom DNS</a></li>
@@ -148,7 +130,15 @@
 
     <div class="container">
       <div id="panel_welcome" class="admin_panel">
-      {% include "welcome.html" %}
+      {% include "dashboard.html" %}
+      </div>
+
+      <div id="panel_firewall" class="admin_panel">
+      {% include "firewall.html" %}
+      </div>
+
+      <div id="panel_logs" class="admin_panel">
+      {% include "logs.html" %}
       </div>
 
       <div id="panel_system_status" class="admin_panel">
@@ -245,6 +235,7 @@
 
         <script src="/admin/assets/jquery.min.js"></script>
         <script src="/admin/assets/bootstrap/js/bootstrap.min.js"></script>
+        <script src="/admin/assets/chart.min.js"></script>
 
         <script>
 var global_modal_state = null;

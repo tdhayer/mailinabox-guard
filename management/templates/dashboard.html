@@ -1,0 +1,319 @@
+<div class="row">
+	<div class="col-md-12">
+		<h2>System Dashboard</h2>
+		<p class="text-muted">Real-time status, usage metrics, and email traffic analysis.</p>
+	</div>
+</div>
+
+<!-- Metrics Quick View -->
+<div class="metrics-grid">
+	<div class="metric-card">
+		<div class="metric-title">CPU Load</div>
+		<div class="metric-value" id="metric-cpu">--%</div>
+		<div class="progress-bar-container">
+			<div id="pb-cpu" class="progress-bar-fill progress-success" style="width: 0%"></div>
+		</div>
+		<div class="metric-footer text-muted" id="metric-cpu-desc">Loading processor usage...</div>
+	</div>
+	
+	<div class="metric-card">
+		<div class="metric-title">Memory (RAM)</div>
+		<div class="metric-value" id="metric-ram">--%</div>
+		<div class="progress-bar-container">
+			<div id="pb-ram" class="progress-bar-fill progress-success" style="width: 0%"></div>
+		</div>
+		<div class="metric-footer text-muted" id="metric-ram-desc">-- GB / -- GB used</div>
+	</div>
+
+	<div class="metric-card">
+		<div class="metric-title">Disk Storage</div>
+		<div class="metric-value" id="metric-disk">--%</div>
+		<div class="progress-bar-container">
+			<div id="pb-disk" class="progress-bar-fill progress-success" style="width: 0%"></div>
+		</div>
+		<div class="metric-footer text-muted" id="metric-disk-desc">-- GB / -- GB used</div>
+	</div>
+
+	<div class="metric-card" id="card-mail-queue">
+		<div class="metric-title">Mail Queue</div>
+		<div class="metric-value" id="metric-queue">--</div>
+		<div class="progress-bar-container">
+			<div id="pb-queue" class="progress-bar-fill progress-success" style="width: 0%"></div>
+		</div>
+		<div class="metric-footer text-muted" id="metric-queue-desc">Outbound email queue size</div>
+	</div>
+</div>
+
+<div class="row">
+	<!-- Services Status -->
+	<div class="col-md-4">
+		<div class="panel">
+			<div class="panel-heading">
+				<h3>System Services</h3>
+			</div>
+			<div class="panel-body" style="padding: 0;">
+				<table class="table" style="margin: 0; border: none;">
+					<tbody>
+						<tr>
+							<td>Web Server (Nginx)</td>
+							<td class="text-right"><span id="svc-nginx" class="badge-status">--</span></td>
+						</tr>
+						<tr>
+							<td>Mail Transfer (Postfix)</td>
+							<td class="text-right"><span id="svc-postfix" class="badge-status">--</span></td>
+						</tr>
+						<tr>
+							<td>IMAP/POP3 (Dovecot)</td>
+							<td class="text-right"><span id="svc-dovecot" class="badge-status">--</span></td>
+						</tr>
+						<tr>
+							<td>Intrusion Prev. (Fail2ban)</td>
+							<td class="text-right"><span id="svc-fail2ban" class="badge-status">--</span></td>
+						</tr>
+						<tr>
+							<td>DKIM Signing (OpenDKIM)</td>
+							<td class="text-right"><span id="svc-opendkim" class="badge-status">--</span></td>
+						</tr>
+						<tr>
+							<td>Spam Filter (Spampd)</td>
+							<td class="text-right"><span id="svc-spampd" class="badge-status">--</span></td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+
+	<!-- Email Stats Chart -->
+	<div class="col-md-8">
+		<div class="panel">
+			<div class="panel-heading" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+				<h3 style="margin: 0; border: none;">Email Traffic Stats</h3>
+				<div class="btn-group" role="group" style="margin-top: -5px;">
+					<button type="button" class="btn btn-default btn-xs active" onclick="load_traffic_stats('today', this)">Today</button>
+					<button type="button" class="btn btn-default btn-xs" onclick="load_traffic_stats('2days', this)">48h</button>
+					<button type="button" class="btn btn-default btn-xs" onclick="load_traffic_stats('week', this)">Week</button>
+					<button type="button" class="btn btn-default btn-xs" onclick="load_traffic_stats('month', this)">Month</button>
+				</div>
+			</div>
+			<div class="panel-body">
+				<div style="position: relative; height: 260px; width: 100%;">
+					<canvas id="chart-traffic"></canvas>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script>
+var trafficChart = null;
+
+function show_welcome() {
+	// Periodically refresh realtime metrics
+	refresh_realtime_metrics();
+	if (window.metricsTimer) clearInterval(window.metricsTimer);
+	window.metricsTimer = setInterval(refresh_realtime_metrics, 10000);
+
+	// Load traffic charts
+	load_traffic_stats('today');
+}
+
+// Clean up timer when changing page
+$(window).on('hashchange', function() {
+	if (window.location.hash !== '#welcome' && window.metricsTimer) {
+		clearInterval(window.metricsTimer);
+		window.metricsTimer = null;
+	}
+});
+
+function refresh_realtime_metrics() {
+	api("/system/metrics/realtime", "GET", {}, function(data) {
+		// CPU
+		var cpuVal = Math.round(data.cpu);
+		$('#metric-cpu').text(cpuVal + '%');
+		$('#pb-cpu').css('width', cpuVal + '%').attr('class', 'progress-bar-fill ' + get_progress_class(cpuVal));
+		$('#metric-cpu-desc').text('Processor load across all cores');
+
+		// RAM
+		var ramPct = Math.round(data.ram.percent);
+		var ramUsedGB = (data.ram.used / (1024*1024*1024)).toFixed(1);
+		var ramTotalGB = (data.ram.total / (1024*1024*1024)).toFixed(1);
+		$('#metric-ram').text(ramPct + '%');
+		$('#pb-ram').css('width', ramPct + '%').attr('class', 'progress-bar-fill ' + get_progress_class(ramPct));
+		$('#metric-ram-desc').text(ramUsedGB + ' GB used of ' + ramTotalGB + ' GB');
+
+		// Disk
+		var diskPct = Math.round(data.disk.percent);
+		var diskUsedGB = (data.disk.used / (1024*1024*1024)).toFixed(1);
+		var diskTotalGB = (data.disk.total / (1024*1024*1024)).toFixed(1);
+		$('#metric-disk').text(diskPct + '%');
+		$('#pb-disk').css('width', diskPct + '%').attr('class', 'progress-bar-fill ' + get_progress_class(diskPct));
+		$('#metric-disk-desc').text(diskUsedGB + ' GB used of ' + diskTotalGB + ' GB');
+
+		// Queue
+		var qVal = data.mail_queue;
+		$('#metric-queue').text(qVal);
+		var qPct = Math.min(100, qVal * 10); // scale bar to 10 emails
+		$('#pb-queue').css('width', qPct + '%').attr('class', 'progress-bar-fill ' + (qVal > 5 ? 'progress-error' : (qVal > 0 ? 'progress-warning' : 'progress-success')));
+		$('#metric-queue-desc').text(qVal === 0 ? 'Mail queue is clear' : qVal + ' messages waiting to deliver');
+		if (qVal > 0) {
+			$('#card-mail-queue').css('border-color', 'var(--warning)');
+		} else {
+			$('#card-mail-queue').css('border-color', 'var(--border-color)');
+		}
+
+		// Services
+		$.each(data.services, function(svc, status) {
+			var badge = $('#svc-' + svc);
+			if (status === 'active') {
+				badge.attr('class', 'badge-status badge-status-ok').text('Active');
+			} else if (status === 'inactive') {
+				badge.attr('class', 'badge-status badge-status-down').text('Down');
+			} else {
+				badge.attr('class', 'badge-status').text('Unknown').css('background-color', '#94a3b8');
+			}
+		});
+	});
+}
+
+function get_progress_class(val) {
+	if (val > 85) return 'progress-error';
+	if (val > 60) return 'progress-warning';
+	return 'progress-success';
+}
+
+function load_traffic_stats(timespan, btn) {
+	if (btn) {
+		$(btn).parent().find('button').removeClass('active');
+		$(btn).addClass('active');
+	}
+
+	api("/mail/stats?timespan=" + timespan, "GET", {}, function(stats) {
+		var labels = [];
+		var sentData = [];
+		var rcvdData = [];
+		var blockedData = [];
+
+		var hours = Array.from({length: 24}, (_, i) => i);
+		labels = hours.map(h => h + ":00");
+
+		var hourlySent = Array(24).fill(0);
+		var hourlyRcvd = Array(24).fill(0);
+		var hourlyBlocked = Array(24).fill(0);
+
+		// Sent mail hours
+		$.each(stats.sent_mail, function(user, udata) {
+			if (udata["activity-by-hour"]) {
+				$.each(udata["activity-by-hour"], function(h, cnt) {
+					var hrIdx = parseInt(h);
+					if (hrIdx >= 0 && hrIdx < 24) hourlySent[hrIdx] += cnt;
+				});
+			}
+		});
+
+		// Received mail hours
+		$.each(stats.received_mail, function(user, udata) {
+			if (udata["activity-by-hour"]) {
+				$.each(udata["activity-by-hour"], function(h, cnt) {
+					var hrIdx = parseInt(h);
+					if (hrIdx >= 0 && hrIdx < 24) hourlyRcvd[hrIdx] += cnt;
+				});
+			}
+		});
+
+		// Blocked mail hours
+		$.each(stats.rejected, function(user, udata) {
+			if (udata.blocked) {
+				$.each(udata.blocked, function(idx, item) {
+					if (item && item[0]) {
+						try {
+							var hr = new Date(item[0]).getHours();
+							if (!isNaN(hr) && hr >= 0 && hr < 24) hourlyBlocked[hr]++;
+						} catch(e){}
+					}
+				});
+			}
+		});
+
+		render_chart(labels, hourlySent, hourlyRcvd, hourlyBlocked);
+	});
+}
+
+function render_chart(labels, sent, received, blocked) {
+	var ctx = document.getElementById('chart-traffic').getContext('2d');
+	
+	if (trafficChart) {
+		trafficChart.destroy();
+	}
+
+	var isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+	var textColor = isDark ? '#94a3b8' : '#64748b';
+	var gridColor = isDark ? '#1e293b' : '#e2e8f0';
+
+	trafficChart = new Chart(ctx, {
+		type: 'line',
+		data: {
+			labels: labels,
+			datasets: [
+				{
+					label: 'Received',
+					data: received,
+					borderColor: '#10b981',
+					backgroundColor: 'rgba(16, 185, 129, 0.1)',
+					fill: true,
+					tension: 0.3
+				},
+				{
+					label: 'Sent',
+					data: sent,
+					borderColor: '#4f46e5',
+					backgroundColor: 'rgba(79, 70, 229, 0.1)',
+					fill: true,
+					tension: 0.3
+				},
+				{
+					label: 'Blocked',
+					data: blocked,
+					borderColor: '#ef4444',
+					backgroundColor: 'rgba(239, 68, 68, 0.1)',
+					fill: true,
+					tension: 0.3
+				}
+			]
+		},
+		options: {
+			responsive: true,
+			maintainAspectRatio: false,
+			plugins: {
+				legend: {
+					labels: {
+						color: textColor,
+						font: {
+							family: 'Plus Jakarta Sans'
+						}
+					}
+				}
+			},
+			scales: {
+				x: {
+					grid: {
+						color: gridColor
+					},
+					ticks: {
+						color: textColor
+					}
+				},
+				y: {
+					grid: {
+						color: gridColor
+					},
+					ticks: {
+						color: textColor,
+						precision: 0
+					}
+				}
+			}
+		}
+	});
+}
+</script>

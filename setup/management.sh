@@ -45,8 +45,8 @@ hide_output $venv/bin/pip install --upgrade pip
 hide_output $venv/bin/pip install --upgrade \
 	rtyaml "email_validator>=1.0.0" "exclusiveprocess" \
 	flask dnspython python-dateutil expiringdict gunicorn \
-	qrcode[pil] pyotp webauthn \
-	"idna>=2.0.0" "cryptography==37.0.2" psutil postfix-mta-sts-resolver \
+	qrcode[pil] pyotp "webauthn>=2.7.0" "cbor2<6.0.0" \
+	"idna>=2.0.0" "cryptography>=44.0.2" psutil postfix-mta-sts-resolver \
 	b2sdk boto3
 
 # CONFIGURATION
@@ -81,6 +81,13 @@ wget_verify $bootstrap_url 0bb64c67c2552014d48ab4db81c2e8c01781f580 /tmp/bootstr
 unzip -q /tmp/bootstrap.zip -d $assets_dir
 mv $assets_dir/bootstrap-$bootstrap_version-dist $assets_dir/bootstrap
 rm -f /tmp/bootstrap.zip
+
+# Chart.js CDN URL
+chartjs_version=3.9.1
+chartjs_url=https://cdnjs.cloudflare.com/ajax/libs/Chart.js/$chartjs_version/chart.min.js
+
+# Get Chart.js
+wget_verify $chartjs_url 42c91fe9394dde71adaf0b8f965e81f92fb8a2fb $assets_dir/chart.min.js
 
 # Create an init script to start the management daemon and keep it
 # running after a reboot.

@@ -10,7 +10,7 @@
 # DEBUG=1 management/daemon.py
 # service mailinabox start # when done debugging, start it up again
 
-import os, os.path, re, json, time
+import os, os.path, re, json, time, datetime, sys
 import multiprocessing.pool
 
 from functools import wraps
@@ -157,6 +157,11 @@ def login():
 			return json_response({
 				"status": "missing-webauthn-token",
 				"options": json.loads(challenge_json),
+			})
+		if "webauthn-library-unavailable" in str(e):
+			return json_response({
+				"status": "invalid",
+				"reason": "Security key (WebAuthn) support is not available on the server. Please run the Mail-in-a-Box setup script to reinstall dependencies, then restart the service.",
 			})
 		# Log the failed login
 		log_failed_login(request)
@@ -927,6 +932,293 @@ def log_failed_login(request):
 	# We need to add a timestamp to the log message, otherwise /dev/log will eat the "duplicate"
 	# message.
 	app.logger.warning("Mail-in-a-Box Management Daemon: Failed login attempt from ip %s - timestamp %s", ip, time.time())
+
+
+# Custom CSS serving route
+@app.route('/custom.css')
+def custom_css():
+	return send_from_directory(os.path.join(os.path.dirname(me), "templates"), "custom.css", mimetype="text/css")
+
+# Realtime system metrics (CPU, Memory, Disk, Mail Queue)
+@app.route('/system/metrics/realtime', methods=["GET"])
+@authorized_personnel_only
+def system_metrics_realtime():
+	import psutil
+	try:
+		# Calculate mail queue size
+		queue_size = 0
+		try:
+			code, output = utils.shell("check_output", ["postqueue", "-p"], trap=True)
+			output = output.strip()
+			if "Mail queue is empty" in output:
+				queue_size = 0
+			else:
+				lines = output.splitlines()
+				if len(lines) > 0 and lines[-1].startswith("--"):
+					m = re.search(r"in\s+(\d+)\s+Requests", lines[-1])
+					if m:
+						queue_size = int(m.group(1))
+		except Exception:
+			pass
+
+		# CPU usage percent
+		cpu_pct = psutil.cpu_percent(interval=None)
+
+		# Memory usage
+		mem = psutil.virtual_memory()
+		mem_data = {
+			"percent": mem.percent,
+			"used": mem.used,
+			"total": mem.total
+		}
+
+		# Disk usage (check storage root)
+		storage_root = env.get("STORAGE_ROOT", "/")
+		disk = psutil.disk_usage(storage_root)
+		disk_data = {
+			"percent": disk.percent,
+			"used": disk.used,
+			"total": disk.total
+		}
+
+		# Services status (active/inactive)
+		services = ["nginx", "postfix", "dovecot", "fail2ban", "opendkim", "spampd"]
+		services_status = {}
+		for service in services:
+			try:
+				# systemctl is-active service
+				code, _ = utils.shell("check_output", ["systemctl", "is-active", service], trap=True)
+				services_status[service] = "active" if code == 0 else "inactive"
+			except Exception:
+				services_status[service] = "unknown"
+
+		return json_response({
+			"cpu": cpu_pct,
+			"ram": mem_data,
+			"disk": disk_data,
+			"mail_queue": queue_size,
+			"services": services_status
+		})
+	except Exception as e:
+		return (str(e), 500)
+
+# Recursive helper to convert set, datetime objects to JSON-serializable types
+def make_json_safe(o):
+	if isinstance(o, (datetime.datetime, datetime.date)):
+		return o.isoformat()
+	elif isinstance(o, (set, frozenset)):
+		return list(o)
+	elif isinstance(o, dict):
+		processed_dict = {}
+		for k, v in o.items():
+			if isinstance(k, tuple):
+				new_key = "/".join(str(item) for item in k)
+			elif isinstance(k, (datetime.datetime, datetime.date)):
+				new_key = k.isoformat()
+			elif not isinstance(k, (str, int, float, bool)) and k is not None:
+				new_key = str(k)
+			else:
+				new_key = k
+			processed_dict[new_key] = make_json_safe(v)
+		return processed_dict
+	elif isinstance(o, list):
+		return [make_json_safe(v) for v in o]
+	elif isinstance(o, tuple):
+		return tuple(make_json_safe(v) for v in o)
+	return o
+
+class SilenceStdout:
+	def __enter__(self):
+		self._original_stdout = sys.stdout
+		sys.stdout = open(os.devnull, 'w')
+	def __exit__(self, exc_type, exc_val, exc_tb):
+		sys.stdout.close()
+		sys.stdout = self._original_stdout
+
+# System email stats
+@app.route('/mail/stats', methods=["GET"])
+@authorized_personnel_only
+def mail_stats_api():
+	import mail_log
+	import sys
+	# Reset/configure globals in mail_log
+	mail_log.END_DATE = datetime.datetime.now()
+	mail_log.NOW = mail_log.END_DATE
+	timespan = request.args.get('timespan', 'today')
+	if timespan not in mail_log.TIME_DELTAS:
+		timespan = 'today'
+	mail_log.START_DATE = mail_log.END_DATE - mail_log.TIME_DELTAS[timespan]
+	mail_log.SCAN_IN = True
+	mail_log.SCAN_OUT = True
+	mail_log.SCAN_DOVECOT_LOGIN = True
+	mail_log.SCAN_GREY = True
+	mail_log.SCAN_BLOCKED = True
+	mail_log.FILTERS = None
+	mail_log.VERBOSE = False
+
+	try:
+		with SilenceStdout():
+			collector = mail_log.scan_mail_log(env)
+		if collector is None:
+			# No log lines were found for the given time range
+			collector = {
+				"sent_mail": {},
+				"received_mail": {},
+				"logins": {},
+				"postgrey": {},
+				"rejected": {},
+			}
+		return json_response(make_json_safe(collector))
+	except Exception as e:
+		return (str(e), 500)
+
+# Fail2ban client helpers
+def get_fail2ban_status():
+	code, output = utils.shell("check_output", ["fail2ban-client", "status"], trap=True)
+	if code != 0:
+		return {"enabled": False, "jails": []}
+	m = re.search(r"Jail list:\s+(.*)", output)
+	if m:
+		jails = [j.strip() for j in m.group(1).split(",") if j.strip()]
+		return {"enabled": True, "jails": jails}
+	return {"enabled": True, "jails": []}
+
+def get_fail2ban_jail_status(jail):
+	if not re.match(r"^[a-zA-Z0-9_-]+$", jail):
+		raise ValueError("Invalid jail name")
+	code, output = utils.shell("check_output", ["fail2ban-client", "status", jail], trap=True)
+	if code != 0:
+		return None
+	
+	currently_failed = 0
+	total_failed = 0
+	currently_banned = 0
+	total_banned = 0
+	banned_ips = []
+	
+	m = re.search(r"Currently failed:\s+(\d+)", output)
+	if m: currently_failed = int(m.group(1))
+	
+	m = re.search(r"Total failed:\s+(\d+)", output)
+	if m: total_failed = int(m.group(1))
+	
+	m = re.search(r"Currently banned:\s+(\d+)", output)
+	if m: currently_banned = int(m.group(1))
+	
+	m = re.search(r"Total banned:\s+(\d+)", output)
+	if m: total_banned = int(m.group(1))
+	
+	m = re.search(r"Banned IP list:\s+(.*)", output)
+	if m:
+		banned_ips = [ip.strip() for ip in m.group(1).split() if ip.strip()]
+		
+	return {
+		"jail": jail,
+		"currently_failed": currently_failed,
+		"total_failed": total_failed,
+		"currently_banned": currently_banned,
+		"total_banned": total_banned,
+		"banned_ips": banned_ips
+	}
+
+# Fail2ban Endpoints
+@app.route('/system/fail2ban/status', methods=['GET'])
+@authorized_personnel_only
+def fail2ban_status_api():
+	try:
+		status = get_fail2ban_status()
+		if not status["enabled"]:
+			return json_response(status)
+		
+		jails_detail = []
+		for jail in status["jails"]:
+			detail = get_fail2ban_jail_status(jail)
+			if detail:
+				jails_detail.append(detail)
+		return json_response({
+			"enabled": True,
+			"jails": jails_detail
+		})
+	except Exception as e:
+		return (str(e), 500)
+
+@app.route('/system/fail2ban/jail/<jail>/unban', methods=['POST'])
+@authorized_personnel_only
+def fail2ban_unban_api(jail):
+	if not re.match(r"^[a-zA-Z0-9_-]+$", jail):
+		return ("Invalid jail name", 400)
+	ip = request.form.get('ip')
+	if not ip:
+		return ("IP address required", 400)
+	if not re.match(r"^[a-fA-F0-9.:]+$", ip):
+		return ("Invalid IP address format", 400)
+	
+	try:
+		utils.shell("check_call", ["fail2ban-client", "set", jail, "unbanip", ip])
+		return "OK"
+	except Exception as e:
+		return (str(e), 500)
+
+@app.route('/system/fail2ban/jail/<jail>/ban', methods=['POST'])
+@authorized_personnel_only
+def fail2ban_ban_api(jail):
+	if not re.match(r"^[a-zA-Z0-9_-]+$", jail):
+		return ("Invalid jail name", 400)
+	ip = request.form.get('ip')
+	if not ip:
+		return ("IP address required", 400)
+	if not re.match(r"^[a-fA-F0-9.:]+$", ip):
+		return ("Invalid IP address format", 400)
+	
+	try:
+		utils.shell("check_call", ["fail2ban-client", "set", jail, "banip", ip])
+		return "OK"
+	except Exception as e:
+		return (str(e), 500)
+
+# System log viewer api
+@app.route('/system/logs', methods=['GET'])
+@authorized_personnel_only
+def get_logs_api():
+	log_type = request.args.get('log_type', 'mail')
+	lines_limit = request.args.get('lines', '500')
+	filter_query = request.args.get('filter', '').strip()
+	
+	log_paths = {
+		'mail': '/var/log/mail.log',
+		'syslog': '/var/log/syslog',
+		'nginx_access': '/var/log/nginx/access.log',
+		'nginx_error': '/var/log/nginx/error.log',
+		'fail2ban': '/var/log/fail2ban.log'
+	}
+	
+	if log_type not in log_paths:
+		return ("Invalid log type", 400)
+		
+	path = log_paths[log_type]
+	if not os.path.exists(path):
+		return json_response({"lines": [], "message": f"Log file {path} does not exist."})
+		
+	try:
+		lines_limit = int(lines_limit)
+		lines_limit = min(max(10, lines_limit), 5000)
+	except ValueError:
+		lines_limit = 500
+		
+	try:
+		code, output = utils.shell("check_output", ["tail", "-n", str(lines_limit), path], trap=True)
+		lines = output.splitlines()
+		
+		if filter_query:
+			q = filter_query.lower()
+			lines = [line for line in lines if q in line.lower()]
+			
+		return json_response({
+			"log_type": log_type,
+			"lines": lines
+		})
+	except Exception as e:
+		return (str(e), 500)
 
 
 # APP

@@ -1,0 +1,168 @@
+<h2>Firewall &amp; Fail2ban</h2>
+<p class="text-muted">Manage active intrusion prevention jails, view currently banned IPs, and manually ban/unban client hosts.</p>
+
+<div class="row">
+	<!-- Jails Overview -->
+	<div class="col-md-5">
+		<div class="panel">
+			<div class="panel-heading">
+				<h3>Fail2ban Jails Status</h3>
+			</div>
+			<div class="panel-body" style="padding: 0;">
+				<table class="table" style="margin: 0; border: none;">
+					<thead>
+						<tr>
+							<th>Jail Name</th>
+							<th class="text-center">Failed Attempts</th>
+							<th class="text-center">Banned Count</th>
+						</tr>
+					</thead>
+					<tbody id="f2b-jails-body">
+						<tr>
+							<td colspan="3" class="text-center text-muted">Loading jails...</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<!-- Manual Ban Form -->
+		<div class="panel">
+			<div class="panel-heading">
+				<h3>Manually Ban IP Address</h3>
+			</div>
+			<div class="panel-body">
+				<form id="f2b-ban-form" onsubmit="return f2b_manual_ban();">
+					<div class="form-group">
+						<label for="ban-ip-address">IP Address:</label>
+						<input type="text" class="form-control" id="ban-ip-address" placeholder="e.g. 192.168.1.100 or 2001:db8::1" required>
+					</div>
+					<div class="form-group">
+						<label for="ban-jail-select">Jail Name:</label>
+						<select id="ban-jail-select" class="form-control">
+							<!-- Populated dynamically -->
+						</select>
+					</div>
+					<button type="submit" class="btn btn-danger btn-block">
+						<span class="fa fa-gavel"></span> Ban Host IP
+					</button>
+				</form>
+			</div>
+		</div>
+	</div>
+
+	<!-- Banned IPs List -->
+	<div class="col-md-7">
+		<div class="panel">
+			<div class="panel-heading">
+				<h3>Currently Banned Host IPs</h3>
+			</div>
+			<div class="panel-body" style="padding: 0;">
+				<table class="table" style="margin: 0; border: none;">
+					<thead>
+						<tr>
+							<th>IP Address</th>
+							<th>Active Jail</th>
+							<th class="text-right">Action</th>
+						</tr>
+					</thead>
+					<tbody id="f2b-banned-body">
+						<tr>
+							<td colspan="3" class="text-center text-muted">No banned IPs found.</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script>
+function show_firewall() {
+	load_fail2ban_status();
+}
+
+function load_fail2ban_status() {
+	api("/system/fail2ban/status", "GET", {}, function(data) {
+		if (!data.enabled) {
+			$('#f2b-jails-body').html('<tr><td colspan="3" class="text-center text-danger">Fail2ban service is not running or disabled.</td></tr>');
+			$('#f2b-banned-body').html('<tr><td colspan="3" class="text-center text-danger">Fail2ban status unavailable.</td></tr>');
+			return;
+		}
+
+		var jailsBody = '';
+		var bannedBody = '';
+		var selectHtml = '';
+		var hasBanned = false;
+
+		$.each(data.jails, function(idx, j) {
+			jailsBody += '<tr>' +
+				'<td><strong>' + j.jail + '</strong></td>' +
+				'<td class="text-center">' + j.currently_failed + ' <span class="text-muted">/ ' + j.total_failed + ' total</span></td>' +
+				'<td class="text-center"><span class="badge-status ' + (j.currently_banned > 0 ? 'badge-status-down' : 'badge-status-ok') + '">' + j.currently_banned + ' active</span></td>' +
+				'</tr>';
+
+			selectHtml += '<option value="' + j.jail + '">' + j.jail + '</option>';
+
+			if (j.banned_ips && j.banned_ips.length > 0) {
+				hasBanned = true;
+				$.each(j.banned_ips, function(i, ip) {
+					bannedBody += '<tr>' +
+						'<td><code>' + ip + '</code></td>' +
+						'<td><span class="label label-danger">' + j.jail + '</span></td>' +
+						'<td class="text-right">' +
+						'<button class="btn btn-default btn-xs text-danger" onclick="f2b_unban_ip(\'' + j.jail + '\', \'' + ip + '\')">' +
+						'<span class="fa fa-unlock"></span> Unban</button>' +
+						'</td>' +
+						'</tr>';
+				});
+			}
+		});
+
+		$('#f2b-jails-body').html(jailsBody);
+		$('#ban-jail-select').html(selectHtml);
+
+		if (hasBanned) {
+			$('#f2b-banned-body').html(bannedBody);
+		} else {
+			$('#f2b-banned-body').html('<tr><td colspan="3" class="text-center text-muted">No clients are currently banned by Fail2ban.</td></tr>');
+		}
+	});
+}
+
+function f2b_unban_ip(jail, ip) {
+	show_modal_confirm(
+		"Unban IP Address",
+		"Are you sure you want to lift the ban on " + ip + " for the jail " + jail + "?",
+		"Unban Host",
+		function() {
+			api("/system/fail2ban/jail/" + jail + "/unban", "POST", { ip: ip }, function(res) {
+				show_modal_error("Firewall & Fail2ban", "Host IP " + ip + " has been unbanned.");
+				load_fail2ban_status();
+			}, function(err) {
+				show_modal_error("Unban Failed", err);
+			});
+		}
+	);
+}
+
+function f2b_manual_ban() {
+	var ip = $('#ban-ip-address').val().trim();
+	var jail = $('#ban-jail-select').val();
+
+	if (!ip) {
+		show_modal_error("Input Error", "Please provide a valid IP address.");
+		return false;
+	}
+
+	api("/system/fail2ban/jail/" + jail + "/ban", "POST", { ip: ip }, function(res) {
+		show_modal_error("Firewall & Fail2ban", "Host IP " + ip + " has been banned on jail " + jail + ".");
+		$('#ban-ip-address').val('');
+		load_fail2ban_status();
+	}, function(err) {
+		show_modal_error("Ban Failed", err);
+	});
+
+	return false;
+}
+</script>

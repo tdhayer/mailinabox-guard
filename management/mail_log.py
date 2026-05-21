@@ -322,6 +322,8 @@ def scan_mail_log(env):
         print("The following unknown services were found in the log file.")
         print(" ", *sorted(collector["other-services"]), sep='\n│ ')
 
+    return collector
+
 
 def scan_mail_log_line(line, collector):
     """ Scan a log line and extract interesting data """
