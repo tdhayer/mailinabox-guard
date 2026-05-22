@@ -1,0 +1,68 @@
+name: CI Quality Gate
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  lint-python:
+    name: Lint & Format Python
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@f67e240f2d185e4979e1814022a6324a30bd0c9d # v5.3.0
+        with:
+          python-version: "3.12"
+
+      - name: Install Ruff
+        run: pip install ruff
+
+      - name: Run Ruff Lint
+        run: ruff check .
+
+      - name: Run Ruff Format Check
+        run: ruff format --check .
+
+  lint-shell:
+    name: Lint Bash Scripts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Run ShellCheck on setup scripts
+        uses: ludeeus/action-shellcheck@00cae500b14c8755098a8d386cc62157d472a812 # v2.0.0
+        with:
+          scandir: './setup'
+
+      - name: Run ShellCheck on management scripts
+        uses: ludeeus/action-shellcheck@00cae500b14c8755098a8d386cc62157d472a812 # v2.0.0
+        with:
+          scandir: './management'
+
+  syntax-matrix:
+    name: Python Syntax Matrix (${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@f67e240f2d185e4979e1814022a6324a30bd0c9d # v5.3.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Compile Python files
+        run: python -m py_compile $(find . -name "*.py" -not -path "*/.venv/*")

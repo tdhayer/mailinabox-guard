@@ -1,0 +1,50 @@
+name: Security Auditing
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  bandit:
+    name: Bandit Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@f67e240f2d185e4979e1814022a6324a30bd0c9d # v5.3.0
+        with:
+          python-version: "3.12"
+
+      - name: Install Bandit
+        run: pip install bandit
+
+      - name: Run Bandit
+        run: bandit -r management/ -ll
+
+  pip-audit:
+    name: Dependency Vulnerability Audit (pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@f67e240f2d185e4979e1814022a6324a30bd0c9d # v5.3.0
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install pip-audit
+          pip install dnspython3
+          pip install rtyaml "email_validator>=1.0.0" exclusiveprocess flask dnspython python-dateutil expiringdict gunicorn "qrcode[pil]" pyotp "webauthn>=2.7.0" "cbor2<6.0.0" "idna>=2.0.0" "cryptography>=44.0.2" psutil postfix-mta-sts-resolver b2sdk boto3
+
+      - name: Run pip-audit
+        run: pip-audit
