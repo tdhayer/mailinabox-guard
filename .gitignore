@@ -36,3 +36,13 @@ api/docs/api-docs.html
 *.code-workspace
 *.swp
 *.swo
+
+# Temporary Release / Build Artifacts
+release_notes.txt
+
+# Merge / Conflict files
+*.orig
+*.rej
+
+# Local History
+.history/
