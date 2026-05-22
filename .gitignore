@@ -1,9 +1,38 @@
+# System Files
 *~
-tests/__pycache__/
-management/__pycache__/
-tools/__pycache__/
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python Caching & Builds
+__pycache__/
+*.py[cod]
+*$py.class
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Vagrant
+.vagrant/
+
+# Mail-in-a-Box Specifics
 externals/
 .env
-.vagrant
 api/docs/api-docs.html
+
+# IDE & Editor Configurations
+.vscode/
+.idea/
 *.code-workspace
+*.swp
+*.swo
