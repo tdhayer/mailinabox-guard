@@ -151,7 +151,6 @@ def check_service(i, service, env):
 	return (i, running, fatal, output)
 
 def run_system_checks(rounded_values, env, output):
-	check_ssh_password(env, output)
 	check_software_updates(env, output)
 	check_miab_version(env, output)
 	check_system_aliases(env, output)
@@ -163,12 +162,28 @@ def run_system_checks(rounded_values, env, output):
 	check_fail2ban_hardening(env, output)
 
 def check_ssh_hardening(env, output):
-	# 1. Check Root Login setting
+	# 1. Check Password Authentication (global setting)
+	password_auth = get_ssh_config_value("passwordauthentication")
+	password_auth_clean = "yes"
+	if password_auth:
+		password_auth_clean = password_auth.lower().strip()
+		if password_auth_clean == "no":
+			output.print_ok("SSH disallows password-based login.")
+		else:
+			output.print_error("""The SSH server on this machine permits password-based login. A more secure
+				way to log in is using a public key. Add your SSH public key to $HOME/.ssh/authorized_keys, check
+				that you can log in without a password, set the option 'PasswordAuthentication no' in
+				/etc/ssh/sshd_config, and then restart the openssh via 'sudo service ssh restart'.""")
+
+	# 2. Check Root Login setting
 	root_login = get_ssh_config_value("permitrootlogin")
 	if root_login:
 		root_login = root_login.lower().strip()
 		if root_login == "yes":
-			output.print_warning("The SSH server permits root login with password authentication. It is recommended to restrict this to key-based login ('PermitRootLogin prohibit-password') or disable it entirely ('PermitRootLogin no') in /etc/ssh/sshd_config.")
+			if password_auth_clean == "yes":
+				output.print_warning("SSH root login is permitted. It is recommended to restrict root to key-based login ('PermitRootLogin prohibit-password') or disable it entirely ('PermitRootLogin no') in /etc/ssh/sshd_config.")
+			else:
+				output.print_warning("SSH root login is permitted (restricted to key-based since password authentication is disabled globally). It is recommended to explicitly set 'PermitRootLogin prohibit-password' or disable root login entirely ('PermitRootLogin no') in /etc/ssh/sshd_config.")
 		elif root_login in {"prohibit-password", "without-password"}:
 			output.print_ok("SSH root login is restricted to public-key authentication only.")
 		elif root_login == "no":
@@ -300,16 +315,7 @@ def check_ufw(env, output):
 def is_port_allowed(ufw, port):
 	return any(re.match(str(port) +"[/ \t].*", item) for item in ufw)
 
-def check_ssh_password(env, output):
-	config_value = get_ssh_config_value("passwordauthentication")
-	if config_value:
-		if config_value == "no":
-			output.print_ok("SSH disallows password-based login.")
-		else:
-			output.print_error("""The SSH server on this machine permits password-based login. A more secure
-				way to log in is using a public key. Add your SSH public key to $HOME/.ssh/authorized_keys, check
-				that you can log in without a password, set the option 'PasswordAuthentication no' in
-				/etc/ssh/sshd_config, and then restart the openssh via 'sudo service ssh restart'.""")
+
 
 def is_reboot_needed_due_to_package_installation():
 	return os.path.exists("/var/run/reboot-required")
