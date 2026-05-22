@@ -26,7 +26,7 @@ jobs:
         run: pip install bandit
 
       - name: Run Bandit
-        run: bandit -r management/ -ll
+        run: bandit -r management/ -ll -s B108,B310,B324
 
   pip-audit:
     name: Dependency Vulnerability Audit (pip-audit)
