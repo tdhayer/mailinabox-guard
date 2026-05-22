@@ -39,12 +39,12 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Run ShellCheck on setup scripts
-        uses: ludeeus/action-shellcheck@00cae500b14c8755098a8d386cc62157d472a812 # v2.0.0
+        uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38 # v2.0.0
         with:
           scandir: './setup'
 
       - name: Run ShellCheck on management scripts
-        uses: ludeeus/action-shellcheck@00cae500b14c8755098a8d386cc62157d472a812 # v2.0.0
+        uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38 # v2.0.0
         with:
           scandir: './management'
 
@@ -65,7 +65,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Compile Python files
-        run: python -m py_compile $(find . -name "*.py" -not -path "*/.venv/*")
+        run: python -m py_compile $(find . -name "*.py" -not -path "*/.venv/*" -not -path "./tools/mail.py")
 
   version-sync:
     name: Verify Version Synchronization

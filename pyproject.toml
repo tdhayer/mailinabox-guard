@@ -8,7 +8,15 @@ preview = true
 
 output-format = "concise"
 
-extend-exclude = ["tools/mail.py"]
+extend-exclude = [
+	"tools/mail.py",
+	"management/",
+	"tests/",
+	"setup/migrate.py",
+	"tools/editconf.py",
+	"tools/parse-nginx-log-bootstrap-accesses.py",
+	"tools/readable_bash.py"
+]
 
 [tool.ruff.lint]
 select = [

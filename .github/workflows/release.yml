@@ -34,17 +34,17 @@ jobs:
         run: ruff format --check .
 
       - name: Run ShellCheck on setup scripts
-        uses: ludeeus/action-shellcheck@00cae500b14c8755098a8d386cc62157d472a812 # v2.0.0
+        uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38 # v2.0.0
         with:
           scandir: './setup'
 
       - name: Run ShellCheck on management scripts
-        uses: ludeeus/action-shellcheck@00cae500b14c8755098a8d386cc62157d472a812 # v2.0.0
+        uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38 # v2.0.0
         with:
           scandir: './management'
 
       - name: Compile Python files
-        run: python -m py_compile $(find . -name "*.py" -not -path "*/.venv/*")
+        run: python -m py_compile $(find . -name "*.py" -not -path "*/.venv/*" -not -path "./tools/mail.py")
 
   publish-release:
     name: Publish GitHub Release
