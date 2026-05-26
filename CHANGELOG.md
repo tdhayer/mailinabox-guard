@@ -1,6 +1,14 @@
 CHANGELOG
 =========
 
+Version 76-guard (May 26, 2026)
+-------------------------------
+
+Mail-in-a-Box Guard release updated to upstream Version 76.
+
+* Style: Modernized admin status panel and aliases UI.
+* Hardening: Restricted SMTP TLS protocols to TLSv1.2 and TLSv1.3 only.
+
 Version 76 (May 24, 2026)
 -------------------------
 
