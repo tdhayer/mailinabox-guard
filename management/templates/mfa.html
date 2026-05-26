@@ -112,6 +112,22 @@ and ensure every administrator account for this control panel does the same.</st
     <div id="output-2fa" class="panel panel-danger">
         <div class="panel-body"></div>
     </div>
+
+    <div class="panel panel-info" style="margin-top: 2em;">
+        <div class="panel-heading">
+            Lost Device & Recovery Options
+        </div>
+        <div class="panel-body">
+            If you ever lose your hardware security key, authenticator device, or are otherwise locked out of this control panel:
+            <ol style="margin-top: 0.5em; margin-bottom: 0; padding-left: 20px;">
+                <li>Log into your server via SSH as the <code>root</code> user.</li>
+                <li>Run the following command to completely disable MFA for your administrator account:
+                    <pre style="margin-top: 0.5em; background-color: var(--bg-app); border-color: var(--border-color); color: var(--text-main);">sudo mailinabox user mfa disable <b>your-email-address</b></pre>
+                </li>
+                <li>Once run, you will be able to log in with just your standard email password and reconfigure your MFA devices.</li>
+            </ol>
+        </div>
+    </div>
 </div>
 
 <script>

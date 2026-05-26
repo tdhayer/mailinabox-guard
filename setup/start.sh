@@ -42,12 +42,14 @@ else
 	FIRST_TIME_SETUP=1
 fi
 
-# Put a start script in a global location. We tell the user to run 'mailinabox'
-# in the first dialog prompt, so we should do this before that starts.
 cat > /usr/local/bin/mailinabox << EOF;
 #!/bin/bash
 cd $PWD
-source setup/start.sh
+if [ "\$#" -gt 0 ]; then
+	exec management/cli.py "\$@"
+else
+	source setup/start.sh
+fi
 EOF
 chmod +x /usr/local/bin/mailinabox
 
