@@ -42,7 +42,7 @@ else
 	FIRST_TIME_SETUP=1
 fi
 
-cat > /usr/local/bin/mailinabox << EOF;
+cat > /usr/local/bin/mailinabox.tmp << EOF;
 #!/bin/bash
 cd $PWD
 if [ "\$#" -gt 0 ]; then
@@ -51,6 +51,7 @@ else
 	source setup/start.sh
 fi
 EOF
+mv /usr/local/bin/mailinabox.tmp /usr/local/bin/mailinabox
 chmod +x /usr/local/bin/mailinabox
 
 # Ask the user for the PRIMARY_HOSTNAME, PUBLIC_IP, and PUBLIC_IPV6,
