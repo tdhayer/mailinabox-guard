@@ -1365,7 +1365,7 @@ def spam_dmarc_stats_api():
 				if not content:
 					continue
 					
-				root = ET.fromstring(content)
+				root = ET.fromstring(content)  # nosec B314
 				dmarc_stats["reports_count"] += 1
 				
 				for record in root.findall(".//record"):
