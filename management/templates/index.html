@@ -11,56 +11,13 @@
 
         <link rel="stylesheet" href="/admin/assets/bootstrap/css/bootstrap.min.css">
         <style>
+            /* Functional layout only — all visual styling lives in custom.css */
             body {
               overflow-y: scroll;
-              padding-bottom: 20px;
-            }
-
-            p {
-              margin-bottom: 1.25em;
-            }
-
-            h1, h2, h3, h4 {
-              font-family: sans-serif;
-              font-weight: bold;
-            }
-
-            h2 {
-              margin: 1em 0;
-            }
-
-            h3 {
-              font-size: 130%;
-              border-bottom: 1px solid black;
-              padding-bottom: 3px;
-              margin-bottom: 13px;
-              margin-top: 30px;
-            }
-            .panel-heading h3 {
-              border: none;
-              padding: 0;
-              margin: 0;
-            }
-
-            h4 {
-              font-size: 110%;
-              margin-bottom: 13px;
-              margin-top: 18px;
-            }
-            h4:first-child {
-              margin-top: 6px;
             }
 
             .admin_panel {
               display: none;
-            }
-
-            table.table {
-              margin: 1.5em 0;
-            }
-
-            ol li {
-              margin-bottom: 1em;
             }
 
             .if-logged-in { display: none; }
@@ -122,7 +79,7 @@
             <li><a href="#web" class="if-logged-in-admin">Web</a></li>
           </ul>
           <ul class="nav navbar-nav navbar-right">
-            <li class="if-logged-in"><a href="#" onclick="do_logout(); return false;" style="color: white">Log out</a></li>
+            <li class="if-logged-in"><a href="#" onclick="do_logout(); return false;">Log out</a></li>
           </ul>
         </div><!--/.navbar-collapse -->
       </div>
@@ -208,10 +165,10 @@
       </footer>
     </div> <!-- /container -->
 
-        <div id="ajax_loading_indicator" style="display: none; position: fixed; left: 0; top: 0; width: 100%; height: 100%; z-index: 100000; text-align: center; background-color: rgba(255,255,255,.75)">
-          <div style="margin: 20% auto">
-            <div><span class="fa fa-spinner fa-pulse"></span></div>
-            <div>Loading...</div>
+        <div id="ajax_loading_indicator" style="display: none;">
+          <div>
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading...</div>
           </div>
         </div>
 

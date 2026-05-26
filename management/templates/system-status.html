@@ -1,23 +1,17 @@
 <h2>System Status Checks</h2>
 
 <style>
-#system-checks .heading td {
-  font-weight: bold;
-  font-size: 120%;
-  padding-top: 1.5em;
+.summary-error {
+  color: var(--error);
+  font-weight: 600;
 }
-#system-checks .heading.first td {
-  border-top: none;
-  padding-top: 0;
+.summary-warning {
+  color: var(--warning);
+  font-weight: 600;
 }
-#system-checks .status-error td, .summary-error {
-  color: #733;
-}
-#system-checks .status-warning td, .summary-warning {
-  color: #770;
-}
-#system-checks .status-ok td, .summary-ok {
-  color: #040;
+.summary-ok {
+  color: var(--success);
+  font-weight: 600;
 }
 #system-checks div.extra {
   display: none;
@@ -27,32 +21,42 @@
 }
 #system-checks a.showhide {
   display: none;
-  font-size: 85%;
+  font-size: 0.875rem;
+  margin-top: 8px;
+  display: inline-block;
 }
 #system-checks .pre {
-  margin: 1em;
-  font-family: monospace;
+  margin: 1em 0;
+  font-family: SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
   white-space: pre-wrap;
+  background-color: var(--bg-app);
+  border: 1px solid var(--border-color);
+  padding: 12px;
+  border-radius: 8px;
+  color: var(--text-main);
+  font-size: 0.875rem;
 }
 </style>
 
 <div class="row">
 	<div class="col-md-push-9 col-md-3">
 
-<div id="system-reboot-required" style="display: none; margin-bottom: 1em;">
-	<button type="button" class="btn btn-danger" onclick="confirm_reboot(); return false;">Reboot Box</button>
-	<div>No reboot is necessary.</div>
+<div id="system-reboot-required" style="display: none; margin-bottom: 1.5em;" class="panel">
+	<h3 style="margin-top: 0 !important; font-size: 1.25rem !important; border-bottom: none !important; padding-bottom: 0 !important; margin-bottom: 12px !important;">System Reboot</h3>
+	<div style="margin-bottom: 16px; font-size: 0.9375rem; line-height: 1.6;" class="reboot-msg">No reboot is necessary.</div>
+	<button type="button" class="btn btn-danger btn-block" style="width: 100%;" onclick="confirm_reboot(); return false;">Reboot Box</button>
 </div>
 
-<div id="system-privacy-setting" style="display: none">
-	<div><a onclick="return enable_privacy(!current_privacy_setting)" href="#"><span>Enable/Disable</span> New-Version Check</a></div>
-	<p style="line-height: 125%"><small>(When enabled, status checks phone-home to check for a new release of Mail-in-a-Box.)</small></p>
+<div id="system-privacy-setting" style="display: none" class="panel">
+	<h3 style="margin-top: 0 !important; font-size: 1.25rem !important; border-bottom: none !important; padding-bottom: 0 !important; margin-bottom: 12px !important;">Privacy Options</h3>
+	<div style="margin-bottom: 12px; font-size: 0.9375rem;"><a onclick="return enable_privacy(!current_privacy_setting)" href="#" class="btn btn-default btn-block" style="width: 100%;"><span>Enable/Disable</span> New-Version Check</a></div>
+	<p style="line-height: 1.4; margin-bottom: 0;"><small class="text-muted">(When enabled, status checks phone-home to check for a new release of Mail-in-a-Box.)</small></p>
 </div>
 
 	</div> <!-- /col -->
 	<div class="col-md-pull-3 col-md-8">
 
-          <div id="system-checks-summary">
+          <div id="system-checks-summary" style="margin-bottom: 1.5rem; font-size: 1.1rem; font-weight: 500;">
           </div>
 
 <table id="system-checks" class="table" style="max-width: 60em">
@@ -79,8 +83,8 @@ function show_system_status() {
     function(r) {
       current_privacy_setting = r;
       $('#system-privacy-setting').show();
-      $('#system-privacy-setting a span').text(r ? "Enable" : "Disable");
-      $('#system-privacy-setting p').toggle(r);
+      $('#system-privacy-setting a span').text(r ? "Disable" : "Enable");
+      $('#system-privacy-setting p').toggle(!r);
     });
 
   api(
@@ -90,7 +94,7 @@ function show_system_status() {
     function(r) {
       $('#system-reboot-required').show(); // show when r becomes available
       $('#system-reboot-required').find('button').toggle(r);
-      $('#system-reboot-required').find('div').toggle(!r);
+      $('#system-reboot-required').find('.reboot-msg').text(r ? "A system reboot is required to apply updates." : "No reboot is necessary.");
     });
 
   api(
@@ -113,10 +117,18 @@ function show_system_status() {
         else
                 n.addClass("status-" + r[i].type)
 
-        if (r[i].type == "ok") n.find('td.status').text(ok_symbol);
-        if (r[i].type == "error") n.find('td.status').text(error_symbol);
-        if (r[i].type == "warning") n.find('td.status').text(warning_symbol);
-        count_by_status[r[i].type]++;
+        if (r[i].type == "ok") {
+          n.find('td.status').html($('<span class="status-badge status-badge-ok">✓</span>'));
+          count_by_status[r[i].type]++;
+        }
+        if (r[i].type == "error") {
+          n.find('td.status').html($('<span class="status-badge status-badge-error">✖</span>'));
+          count_by_status[r[i].type]++;
+        }
+        if (r[i].type == "warning") {
+          n.find('td.status').html($('<span class="status-badge status-badge-warning">?</span>'));
+          count_by_status[r[i].type]++;
+        }
 
         n.find('td.message p').text(r[i].text)
         $('#system-checks tbody').append(n);

@@ -57,7 +57,7 @@
   </div>
 </form>
 
-<div style="text-align: right; font-size; 90%; margin-top: 1em;">
+<div style="text-align: right; font-size: 0.875rem; margin-top: 1rem;">
   sort by:
   <a href="#" onclick="window.miab_custom_dns_data_sort_order='qname'; show_current_custom_dns_update_after_sort(); return false;">domain name</a>
   |
@@ -112,9 +112,9 @@
 
 <p>Usage:</p>
 
-<pre>curl -X <b>VERB</b> [-d "<b>value</b>"] --user {email}:{password} https://{{hostname}}/admin/dns/custom[/<b>qname</b>[/<b>rtype</b>]]</pre>
+<pre style="background-color: var(--bg-app) !important; border: 1px solid var(--border-color) !important; color: var(--text-main) !important; font-size: 0.875rem; padding: 12px; border-radius: 8px; font-family: SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace; overflow-x: auto;">curl -X <b>VERB</b> [-d "<b>value</b>"] --user {email}:{password} https://{{hostname}}/admin/dns/custom[/<b>qname</b>[/<b>rtype</b>]]</pre>
 
-<p>(Brackets denote an optional argument.)</p>
+<p class="text-muted">(Brackets denote an optional argument.)</p>
 
 <h4>Verbs</h4>
 
@@ -147,7 +147,7 @@
 
 <p>Try these examples. For simplicity the examples omit the <code>--user me@mydomain.com:yourpassword</code> command line argument which you must fill in with your email address and password.</p>
 
-<pre># sets laptop.mydomain.com to point to the IP address of the machine you are executing curl on
+<pre style="background-color: var(--bg-app) !important; border: 1px solid var(--border-color) !important; color: var(--text-main) !important; font-size: 0.875rem; padding: 12px; border-radius: 8px; font-family: SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace; overflow-x: auto;"># sets laptop.mydomain.com to point to the IP address of the machine you are executing curl on
 curl -X PUT https://{{hostname}}/admin/dns/custom/laptop.mydomain.com
 
 # deletes that record and all A records for that domain name
@@ -163,8 +163,7 @@ curl -X DELETE https://{{hostname}}/admin/dns/custom/foo.mydomain.com/cname
 curl -X POST -d "some text here" https://{{hostname}}/admin/dns/custom/foo.mydomain.com/txt
 
 # deletes that one TXT record while preserving other TXT records
-curl -X DELETE -d "some text here" https://{{hostname}}/admin/dns/custom/foo.mydomain.com/txt
-</pre>
+curl -X DELETE -d "some text here" https://{{hostname}}/admin/dns/custom/foo.mydomain.com/txt</pre>
 
 <script>
 function show_custom_dns() {
@@ -218,7 +217,7 @@ function show_current_custom_dns_update_after_sort() {
       var last_zone = null;
       for (var i = 0; i < data.length; i++) {
         if (sort_key == "qname" && data[i].zone != last_zone) {
-          var r = $("<tr><th role='heading' aria-level='4' colspan=4 style='background-color: #EEE'></th></tr>");
+          var r = $("<tr><th role='heading' aria-level='4' colspan=4 style='background-color: var(--bg-app) !important; color: var(--text-main) !important; font-weight: 700; text-transform: none; border-bottom: 1px solid var(--border-color); font-size: 0.95rem; padding: 12px 16px;'></th></tr>");
           r.find("th").text(data[i].zone);
           tbody.append(r);
           last_zone = data[i].zone;

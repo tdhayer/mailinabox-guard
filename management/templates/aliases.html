@@ -5,107 +5,106 @@
 
 <h2>Aliases</h2>
 
-<h3>Add a mail alias</h3>
+<div class="panel">
+  <div class="panel-heading">
+    <h3 style="margin: 0 !important; border: none !important; padding: 0 !important; font-size: 1.25rem !important;">Add a mail alias</h3>
+  </div>
+  <p class="text-muted">Aliases are email forwarders. An alias can forward email to a <a href="#users">mail user</a> or to any email address.</p>
+  <p class="text-muted" style="margin-bottom: 1.5rem;">To use an alias or any address besides your own login username in outbound mail, the sending user must be included as a permitted sender for the alias.</p>
 
-<p>Aliases are email forwarders. An alias can forward email to a <a href="#users">mail user</a> or to any email address.</p>
-
-<p>To use an alias or any address besides your own login username in outbound mail, the sending user must be included as a permitted sender for the alias.</p>
-
-<form id="addalias-form" class="form-horizontal" role="form" onsubmit="do_add_alias(); return false;">
-  <div class="form-group">
-    <div class="col-sm-offset-1 col-sm-11">
-      <div id="alias_type_buttons" class="btn-group btn-group-xs">
+  <form id="addalias-form" role="form" onsubmit="do_add_alias(); return false;">
+    <div class="form-group" style="margin-bottom: 1.5rem;">
+      <label style="display: block; margin-bottom: 8px;">Alias Type</label>
+      <div id="alias_type_buttons" class="btn-group">
         <button type="button" class="btn btn-default" data-mode="regular">Regular</button>
         <button type="button" class="btn btn-default" data-mode="catchall">Catch-All</button>
         <button type="button" class="btn btn-default" data-mode="domainalias">Domain Alias</button>
       </div>
-      <div id="alias_mode_info" class="text-info small" style="display: none; margin: .5em 0 0 0;">
+      <div id="alias_mode_info" class="text-info small" style="display: none; margin-top: 8px;">
         <span class="catchall hidden">A catch-all alias captures all otherwise unmatched email to a domain.</span>
         <span class="domainalias hidden">A domain alias forwards all otherwise unmatched email from one domain to another domain, preserving the part before the @-sign.</span>
       </div>
     </div>
-  </div>
-  <div class="form-group">
-    <label for="addaliasAddress" class="col-sm-1 control-label">Alias</label>
-    <div class="col-sm-10">
-      <input type="email" class="form-control" id="addaliasAddress">
-      <div style="margin-top: 3px; padding-left: 3px; font-size: 90%" class="text-muted">
+
+    <div class="form-group">
+      <label for="addaliasAddress">Alias Address</label>
+      <input type="text" class="form-control" id="addaliasAddress">
+      <div style="margin-top: 6px; font-size: 0.875rem; color: var(--text-muted);">
         <span class="catchall domainalias">Enter just the part of an email address starting with the @-sign.</span>
         You may use international (non-ASCII) characters for the domain part of the email address only.
       </div>
     </div>
-  </div>
-  <div class="form-group">
-    <label for="addaliasForwardsTo" class="col-sm-1 control-label">Forwards To</label>
-    <div class="col-sm-10">
-      <textarea class="form-control" rows="3" id="addaliasForwardsTo"></textarea>
-      <div style="margin-top: 3px; padding-left: 3px; font-size: 90%">
+
+    <div class="form-group">
+      <label for="addaliasForwardsTo">Forwards To</label>
+      <textarea class="form-control" rows="3" id="addaliasForwardsTo" style="resize: vertical;"></textarea>
+      <div style="margin-top: 6px; font-size: 0.875rem;">
         <span class="domainalias text-muted">Enter just the part of an email address starting with the @-sign.</span>
         <span class="text-danger">Only forward mail to addresses handled by this Mail-in-a-Box, since mail forwarded by aliases to other domains may be rejected or filtered by the receiver. To forward mail to other domains, create a mail user and then log into webmail for the user and create a filter rule to forward mail.</span>
       </div>
     </div>
-  </div>
-  <div class="form-group">
-    <fieldset>
-      <legend>
-      <label for="addaliasSenders" class="col-sm-1 control-label">Permitted Senders</label>
-      </legend>
+    <div class="form-group" style="margin-top: 1.5rem; margin-bottom: 1.5rem;">
+      <label style="display: block; margin-bottom: 8px;">Permitted Senders</label>
 
-      <div class="col-sm-10">
-        <div class="radio">
-          <label for="addaliasForwardsToNotAdvanced">
-            <input id="addaliasForwardsToNotAdvanced"
-                  name="addaliasForwardsToDivToggle"
-                  type="radio"
-                  checked
-                  onclick="$('#addaliasForwardsToDiv').toggle(false)">
-            Any mail user listed in the Forwards To box can send mail claiming to be from
-            <span class="regularalias">the alias address</span>
-            <span class="catchall domainalias">any address on the alias domain</span>.
-          </label>
-        </div>
-
-        <div class="radio">
-          <label for="addaliasForwardsToAdvanced">
-            <input id="addaliasForwardsToAdvanced"
-                  name="addaliasForwardsToDivToggle"
-                  type="radio"
-                  onclick="$('#addaliasForwardsToDiv').toggle(true)">
-            I&rsquo;ll enter the mail users that can send mail claiming to be from
-            <span class="regularalias">the alias address</span>
-            <span class="catchall domainalias">any address on the alias domain</span>.
-          </label>
-        </div>
+      <div class="radio" style="margin-top: 0;">
+        <label for="addaliasForwardsToNotAdvanced" style="font-weight: 500; color: var(--text-main);">
+          <input id="addaliasForwardsToNotAdvanced"
+                 name="addaliasForwardsToDivToggle"
+                 type="radio"
+                 checked
+                 onclick="$('#addaliasForwardsToDiv').toggle(false)">
+          Any mail user listed in the Forwards To box can send mail claiming to be from
+          <span class="regularalias">the alias address</span>
+          <span class="catchall domainalias">any address on the alias domain</span>.
+        </label>
       </div>
-      <div id="addaliasForwardsToDiv" style="margin-top: .5em; margin-left: 1.4em; display: none;">
-        <textarea class="form-control" rows="3" id="addaliasSenders" placeholder="one user per line or separated by commas"></textarea>
+
+      <div class="radio">
+        <label for="addaliasForwardsToAdvanced" style="font-weight: 500; color: var(--text-main);">
+          <input id="addaliasForwardsToAdvanced"
+                 name="addaliasForwardsToDivToggle"
+                 type="radio"
+                 onclick="$('#addaliasForwardsToDiv').toggle(true)">
+          I&rsquo;ll enter the mail users that can send mail claiming to be from
+          <span class="regularalias">the alias address</span>
+          <span class="catchall domainalias">any address on the alias domain</span>.
+        </label>
+      </div>
+
+      <div id="addaliasForwardsToDiv" style="margin-top: 10px; padding-left: 20px; display: none;">
+        <textarea class="form-control" rows="3" id="addaliasSenders" placeholder="one user per line or separated by commas" style="resize: vertical;"></textarea>
       </div>
     </div>
-  </fieldset>
-</div>
-  <div class="form-group">
-    <div class="col-sm-offset-1 col-sm-11">
+
+    <div style="margin-top: 1.5rem;">
       <button id="add-alias-button" type="submit" class="btn btn-primary">Add Alias</button>
       <button id="alias-cancel" class="btn btn-default hidden" onclick="aliases_reset_form(); return false;">Cancel</button>
     </div>
+  </form>
+</div>
+
+<div class="panel">
+  <div class="panel-heading">
+    <h3 style="margin: 0 !important; border: none !important; padding: 0 !important; font-size: 1.25rem !important;">Existing mail aliases</h3>
   </div>
-</form>
 
-<h3>Existing mail aliases</h3>
-<table id="alias_table" class="table" style="width: auto">
-  <thead>
-    <tr>
-      <th scope="col" aria-label="Actions"></th>
-      <th scope="col"> Alias<br></th>
-      <th scope="col"> Forwards To</th>
-      <th scope="col"> Permitted Senders</th>
-    </tr>
-  </thead>
-  <tbody>
-  </tbody>
-</table>
+  <div class="table-responsive" style="border: none;">
+    <table id="alias_table" class="table" style="width: 100%; margin-bottom: 0 !important;">
+      <thead>
+        <tr>
+          <th scope="col" aria-label="Actions" style="width: 80px;"></th> 
+          <th scope="col" style="width: 30%;">Alias</th>
+          <th scope="col" style="width: 35%;">Forwards To</th>
+          <th scope="col">Permitted Senders</th>
+        </tr>
+      </thead>
+      <tbody>
+      </tbody>
+    </table>
+  </div>
 
-<p style="margin-top: 1.5em"><small>hostmaster@, postmaster@, admin@ and abuse@ email addresses are required on some domains.</small></p>
+  <p style="margin-top: 1.5rem; margin-bottom: 0;"><small class="text-muted">hostmaster@, postmaster@, admin@ and abuse@ email addresses are required on some domains.</small></p>
+</div>
 
 <div style="display: none">
   <table>
@@ -125,47 +124,63 @@
   </table>
 </div>
 
-<h3>Mail aliases API (advanced)</h3>
+<div class="panel">
+  <div class="panel-heading">
+    <h3 style="margin: 0 !important; border: none !important; padding: 0 !important; font-size: 1.25rem !important;">Mail Aliases API (Advanced)</h3>
+  </div>
+  <p class="text-muted">Use your box&rsquo;s mail aliases API to add and remove mail aliases from the command-line or custom services you build.</p>
 
-<p>Use your box&rsquo;s mail aliases API to add and remove mail aliases from the command-line or custom services you build.</p>
+  <p style="font-weight: 600; margin-bottom: 8px;">Usage:</p>
+  <pre style="background-color: var(--bg-app) !important; border: 1px solid var(--border-color) !important; color: var(--text-main) !important; font-size: 0.875rem; padding: 12px; border-radius: 8px; font-family: SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace; overflow-x: auto;">curl -X <b>VERB</b> [-d "<b>parameters</b>"] --user {email}:{password} https://{{hostname}}/admin/mail/aliases[<b>action</b>]</pre>
 
-<p>Usage:</p>
+  <p class="text-muted">Brackets denote an optional argument. Please note that the POST body <code>parameters</code> must be URL-encoded.</p>
+  <p class="text-muted" style="margin-bottom: 2rem;">The email and password given to the <code>--user</code> option must be an administrative user on this system.</p>
 
-<pre>curl -X <b>VERB</b> [-d "<b>parameters</b>"] --user {email}:{password} https://{{hostname}}/admin/mail/aliases[<b>action</b>]</pre>
+  <h4 style="font-size: 1.1rem; margin-bottom: 12px;">Verbs</h4>
+  <div class="table-responsive" style="border: none;">
+    <table class="table" style="margin-top: 0; margin-bottom: 2rem;">
+      <thead>
+        <tr>
+          <th scope="col" style="width: 15%;">Verb</th>
+          <th scope="col" style="width: 25%;">Action</th>
+          <th scope="col">Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code style="background-color: var(--bg-app) !important; color: var(--text-main) !important; border: none !important;">GET</code></td>
+          <td><i>(none)</i></td>
+          <td>Returns a list of existing mail aliases. Adding <code>?format=json</code> to the URL will give JSON-encoded results.</td>
+        </tr>
+        <tr>
+          <td><code style="background-color: var(--bg-app) !important; color: var(--text-main) !important; border: none !important;">POST</code></td>
+          <td><code style="background-color: var(--bg-app) !important; color: var(--text-main) !important; border: none !important;">/add</code></td>
+          <td>Adds a new mail alias. Required POST-body parameters are <code>address</code> and <code>forwards_to</code>.</td>
+        </tr>
+        <tr>
+          <td><code style="background-color: var(--bg-app) !important; color: var(--text-main) !important; border: none !important;">POST</code></td>
+          <td><code style="background-color: var(--bg-app) !important; color: var(--text-main) !important; border: none !important;">/remove</code></td>
+          <td>Removes a mail alias. Required POST-body parameter is <code>address</code>.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 
-<p>Brackets denote an optional argument. Please note that the POST body <code>parameters</code> must be URL-encoded.</p>
-
-<p>The email and password given to the <code>--user</code> option must be an administrative user on this system.</p>
-
-<h4 style="margin-bottom: 0">Verbs</h4>
-
-<table class="table" style="margin-top: .5em">
-<thead><tr>
-<th scope="col"> Verb</th> <th scope="col"> Action</th><th scope="col"> </th>
-</tr></thead>
-<tr><td>GET</td><td><i>(none)</i></td> <td>Returns a list of existing mail aliases. Adding <code>?format=json</code> to the URL will give JSON-encoded results.</td></tr>
-<tr><td>POST</td><td>/add</td> <td>Adds a new mail alias. Required POST-body parameters are <code>address</code> and <code>forwards_to</code>.</td></tr>
-<tr><td>POST</td><td>/remove</td> <td>Removes a mail alias. Required POST-body parameter is <code>address</code>.</td></tr>
-</table>
-
-<h4>Examples:</h4>
-
-<p>Try these examples. For simplicity the examples omit the <code>--user me@mydomain.com:yourpassword</code> command line argument which you must fill in with your email address and password.</p>
-
-<pre># Gives a JSON-encoded list of all mail aliases
+  <h4 style="font-size: 1.1rem; margin-top: 1rem; margin-bottom: 12px;">Examples:</h4>
+  <p class="text-muted">Try these examples. For simplicity the examples omit the <code>--user me@mydomain.com:yourpassword</code> command line argument which you must fill in with your email address and password.</p>
+  <pre style="background-color: var(--bg-app) !important; border: 1px solid var(--border-color) !important; color: var(--text-main) !important; font-size: 0.875rem; padding: 12px; border-radius: 8px; font-family: SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace; overflow-x: auto;"># Gives a JSON-encoded list of all mail aliases
 curl -X GET https://{{hostname}}/admin/mail/aliases?format=json
 
 # Adds a new alias
 curl -X POST -d "address=new_alias@mydomail.com" -d "forwards_to=my_email@mydomain.com" https://{{hostname}}/admin/mail/aliases/add
 
 # Removes an alias
-curl -X POST -d "address=new_alias@mydomail.com" https://{{hostname}}/admin/mail/aliases/remove
-</pre>
-
+curl -X POST -d "address=new_alias@mydomail.com" https://{{hostname}}/admin/mail/aliases/remove</pre>
+</div>
 
 <script>
 function show_aliases() {
-  $('#alias_table tbody').html("<tr><td colspan='2' class='text-muted'>Loading...</td></tr>")
+  $('#alias_table tbody').html("<tr><td colspan='4' class='text-muted'>Loading...</td></tr>")
   api(
     "/mail/aliases",
     "GET",
@@ -173,7 +188,7 @@ function show_aliases() {
     function(r) {
       $('#alias_table tbody').html("");
       for (var i = 0; i < r.length; i++) {
-        var hdr = $("<tr><th role='heading' aria-level='4' colspan='4' style='background-color: #EEE'></th></tr>");
+        var hdr = $("<tr><th role='heading' aria-level='4' colspan='4' style='background-color: var(--bg-app) !important; color: var(--text-main) !important; font-weight: 700; text-transform: none; border-bottom: 1px solid var(--border-color); font-size: 0.95rem; padding: 12px 16px;'></th></tr>");
         hdr.find('th').text(r[i].domain);
         $('#alias_table tbody').append(hdr);
 
