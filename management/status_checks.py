@@ -229,6 +229,8 @@ def check_tls_hardening(env, output):
 		try:
 			with open(file_path, "r", encoding="utf-8") as f:
 				content = f.read()
+			# Strip comments to avoid matching commented out directives
+			content = re.sub(r"#.*", "", content)
 			pattern = r"\b" + re.escape(directive) + r"\s+([^;]+);"
 			match = re.search(pattern, content, re.IGNORECASE)
 			if match:
