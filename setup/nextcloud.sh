@@ -449,5 +449,14 @@ EOF
 # done
 # ```
 
+# php-fpm systemd hardening in recent package updates blocks Nextcloud from reading/writing
+# to its own apps directory under /usr/local/lib/owncloud. Create a systemd drop-in override.
+mkdir -p /etc/systemd/system/php"$PHP_VER"-fpm.service.d
+cat > /etc/systemd/system/php"$PHP_VER"-fpm.service.d/mailinabox-override.conf <<EOF
+[Service]
+ReadWritePaths=/usr/local/lib/owncloud
+EOF
+hide_output systemctl daemon-reload
+
 # Enable PHP modules and restart PHP.
 restart_service php"$PHP_VER"-fpm
