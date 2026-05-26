@@ -36,6 +36,34 @@
   color: var(--text-main);
   font-size: 0.875rem;
 }
+.filter-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  border-radius: 999px;
+  padding: 4px 16px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  outline: none;
+}
+.filter-btn:hover {
+  background: var(--bg-app);
+  color: var(--text-main);
+}
+.filter-btn.active {
+  background: var(--text-main);
+  color: var(--bg-card);
+  border-color: var(--text-main);
+}
+.filter-btn-ok.active { background: var(--success); border-color: var(--success); color: white; }
+.filter-btn-warning.active { background: var(--warning); border-color: var(--warning); color: white; }
+.filter-btn-error.active { background: var(--error); border-color: var(--error); color: white; }
 </style>
 
 <div class="row">
@@ -49,7 +77,7 @@
 
 <div id="system-privacy-setting" style="display: none" class="panel">
 	<h3 style="margin-top: 0 !important; font-size: 1.25rem !important; border-bottom: none !important; padding-bottom: 0 !important; margin-bottom: 12px !important;">Privacy Options</h3>
-	<div style="margin-bottom: 12px; font-size: 0.9375rem;"><a onclick="return enable_privacy(!current_privacy_setting)" href="#" class="btn btn-default btn-block" style="width: 100%;"><span>Enable/Disable</span> New-Version Check</a></div>
+	<div style="margin-bottom: 12px; font-size: 0.9375rem;"><a onclick="return enable_privacy(!current_privacy_setting)" href="#" class="btn btn-default btn-block" style="width: 100%; white-space: normal;"><span>Enable/Disable</span> New-Version Check</a></div>
 	<p style="line-height: 1.4; margin-bottom: 0;"><small class="text-muted">(When enabled, status checks phone-home to check for a new release of Mail-in-a-Box.)</small></p>
 </div>
 
@@ -59,7 +87,7 @@
           <div id="system-checks-summary" style="margin-bottom: 1.5rem; font-size: 1.1rem; font-weight: 500;">
           </div>
 
-<table id="system-checks" class="table" style="max-width: 60em">
+<table id="system-checks" class="table table-condensed" style="max-width: 60em">
   <thead>
   </thead>
   <tbody>
@@ -111,6 +139,7 @@ function show_system_status() {
 
       for (var i = 0; i < r.length; i++) {
         var n = $("<tr><td class='status'/><td class='message'><p style='margin: 0'/><div class='extra'/><a class='showhide' href='#'/></tr>");
+        n.attr('data-status-type', r[i].type);
         if (i == 0) n.addClass('first')
         if (r[i].type == "heading")
                 n.addClass(r[i].type)
@@ -150,17 +179,63 @@ function show_system_status() {
         }
       }
 
-      // Summary counts
-      summary.html("Summary: ");
-      if (count_by_status['error'] + count_by_status['warning'] == 0) {
-        summary.append($('<span class="summary-ok"/>').text(`All ${count_by_status['ok']} ${ok_symbol} OK`));
-      } else {
-        summary.append($('<span class="summary-ok"/>').text(`${count_by_status['ok']} ${ok_symbol} OK, `));
-        summary.append($('<span class="summary-error"/>').text(`${count_by_status['error']} ${error_symbol} Error, `));
-        summary.append($('<span class="summary-warning"/>').text(`${count_by_status['warning']} ${warning_symbol} Warning`));
+      // Summary filter buttons
+      summary.html("");
+      
+      let all_btn = $('<button class="filter-btn active" data-filter="all"/>').text(`All Checks (${r.filter(x => x.type !== 'heading').length})`);
+      all_btn.click(() => filter_status('all'));
+      summary.append(all_btn);
+
+      if (count_by_status['error'] > 0) {
+        let err_btn = $('<button class="filter-btn filter-btn-error" data-filter="error"/>').text(`✖ ${count_by_status['error']} Error${count_by_status['error'] > 1 ? 's' : ''}`);
+        err_btn.click(() => filter_status('error'));
+        summary.append(err_btn);
+      }
+      if (count_by_status['warning'] > 0) {
+        let warn_btn = $('<button class="filter-btn filter-btn-warning" data-filter="warning"/>').text(`? ${count_by_status['warning']} Warning${count_by_status['warning'] > 1 ? 's' : ''}`);
+        warn_btn.click(() => filter_status('warning'));
+        summary.append(warn_btn);
+      }
+      if (count_by_status['ok'] > 0) {
+        let ok_btn = $('<button class="filter-btn filter-btn-ok" data-filter="ok"/>').text(`✓ ${count_by_status['ok']} OK`);
+        ok_btn.click(() => filter_status('ok'));
+        summary.append(ok_btn);
+      }
+
+      // Default to "error" or "warning" filter if there are any issues
+      if (count_by_status['error'] > 0) {
+        filter_status('error');
+      } else if (count_by_status['warning'] > 0) {
+        filter_status('warning');
       }
     })
 }
+
+window.filter_status = function(type) {
+  $('.filter-btn').removeClass('active');
+  $('.filter-btn[data-filter="' + type + '"]').addClass('active');
+
+  if (type === 'all') {
+    $('#system-checks tbody tr').show();
+    return;
+  }
+
+  $('#system-checks tbody tr').hide();
+  let current_heading = null;
+
+  $('#system-checks tbody tr').each(function() {
+    let row_type = $(this).attr('data-status-type');
+    if (row_type === 'heading') {
+      current_heading = $(this);
+    } else if (row_type === type) {
+      if (current_heading) {
+        current_heading.show();
+        current_heading = null;
+      }
+      $(this).show();
+    }
+  });
+};
 
 var current_privacy_setting = null;
 function enable_privacy(status) {

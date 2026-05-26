@@ -1094,7 +1094,7 @@ def what_version_is_this(env):
 	# so this function may raise all sorts of exceptions.
 	miab_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 	try:
-		return shell("check_output", ["/usr/bin/git", "describe", "--always", "--abbrev=0"], env={"GIT_DIR": os.path.join(miab_dir, '.git')}).strip()
+		return shell("check_output", ["/usr/bin/git", "describe", "--always", "--abbrev=0"], env={"GIT_DIR": os.path.join(miab_dir, '.git')}, capture_stderr=True).strip()
 	except Exception:
 		version_file = os.path.join(miab_dir, 'VERSION')
 		if os.path.exists(version_file):

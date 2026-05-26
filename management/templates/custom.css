@@ -258,12 +258,12 @@ textarea.form-control {
 }
 
 select.form-control {
-  appearance: none;
-  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 12px 12px;
-  padding-right: 36px;
+  appearance: none !important;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 12px center !important;
+  background-size: 12px 12px !important;
+  padding-right: 36px !important;
 }
 
 label {
@@ -291,7 +291,8 @@ label.radio-inline {
   font-weight: 600 !important;
   padding: 8px 18px !important;
   font-size: 1rem !important;
-  height: 40px !important;
+  min-height: 40px !important;
+  height: auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -368,6 +369,12 @@ label.radio-inline {
   letter-spacing: normal !important;
   font-weight: normal !important;
   line-height: 1.5 !important;
+}
+
+.table-condensed tbody th,
+.table-condensed td {
+  padding: 8px 10px !important;
+  font-size: 0.9375rem !important;
 }
 
 .table tbody th {
@@ -472,9 +479,9 @@ div.pre {
   color: var(--text-main) !important;
   font-family: var(--font-heading) !important;
   border-bottom: 2px solid var(--border-color) !important;
-  font-size: 1.1rem !important;
+  font-size: 1rem !important;
   font-weight: 700 !important;
-  padding-top: 1.75rem !important;
+  padding-top: 1rem !important;
 }
 
 #system-checks .heading.first td {

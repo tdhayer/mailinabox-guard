@@ -44,13 +44,13 @@
 
 <p>Which domain are you getting a certificate for?</p>
 
-<p><select id="ssldomain" onchange="show_csr()" class="form-control" style="width: auto"></select></p>
+<p><select id="ssldomain" onchange="show_csr()" class="form-control"></select></p>
 
 <p>(A multi-domain or wildcard certificate will be automatically applied to any domains it is valid for besides the one you choose above.)</p>
 
 <p>What country are you in? This is required by some TLS certificate providers. You may leave this blank if you know your TLS certificate provider doesn't require it.</p>
 
-<p><select id="sslcc" onchange="show_csr()" class="form-control" style="width: auto">
+<p><select id="sslcc" onchange="show_csr()" class="form-control">
 	<option value="">(Select)</option>
 	{% for code, name in csr_country_codes %}
 		<option value="{{code}}">{{name}}</option>
