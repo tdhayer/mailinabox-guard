@@ -655,3 +655,133 @@ div.pre {
   color: var(--text-main);
 }
 
+/* Dashboard Tabs Navigation */
+.dashboard-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 2px solid var(--border-color);
+  margin-bottom: 24px;
+  padding-bottom: 2px;
+}
+
+.dashboard-tab-btn {
+  background: none;
+  border: none;
+  padding: 10px 18px;
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  outline: none;
+}
+
+.dashboard-tab-btn:hover {
+  color: var(--text-main);
+  background-color: var(--bg-app);
+}
+
+.dashboard-tab-btn.active {
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+.dashboard-tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background-color: var(--primary-color);
+  border-radius: 3px;
+}
+
+.dashboard-tab-content {
+  display: none;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.dashboard-tab-content.active {
+  display: block;
+}
+
+/* Mail Queue styles */
+.queue-actions-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.mono-pre {
+  font-family: monospace;
+  font-size: 0.85rem;
+  background-color: var(--bg-app) !important;
+  color: var(--text-main) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 6px;
+  padding: 6px 10px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-width: 450px;
+  max-height: 120px;
+  overflow-y: auto;
+  margin: 0;
+}
+
+/* Badge connections */
+.conn-badge-web {
+  background-color: rgba(79, 70, 229, 0.15);
+  color: var(--primary-color);
+}
+.conn-badge-dovecot {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: var(--success);
+}
+
+/* Chart Canvas container */
+.chart-container-half {
+  position: relative;
+  height: 250px;
+  width: 100%;
+}
+
+.stat-summary-box {
+  background: var(--bg-app);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.stat-summary-num {
+  font-family: var(--font-heading);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin-bottom: 4px;
+}
+
+.stat-summary-num.text-success {
+  color: var(--success) !important;
+}
+
+.stat-summary-num.text-error {
+  color: var(--error) !important;
+}
+
+.stat-summary-num.text-warning {
+  color: var(--warning) !important;
+}
+
+.stat-summary-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}

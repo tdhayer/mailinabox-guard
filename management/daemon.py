@@ -1220,8 +1220,253 @@ def get_logs_api():
 	except Exception as e:
 		return (str(e), 500)
 
+# System Mail Queue API
+@app.route('/system/mail-queue', methods=['GET'])
+@authorized_personnel_only
+def get_mail_queue_api():
+	try:
+		code, output = utils.shell("check_output", ["/usr/sbin/postqueue", "-j"], trap=True)
+		if code != 0:
+			code, output = utils.shell("check_output", ["postqueue", "-j"], trap=True)
+		
+		queue_items = []
+		if code == 0 and output.strip():
+			for line in output.strip().splitlines():
+				if line.strip():
+					try:
+						queue_items.append(json.loads(line))
+					except ValueError:
+						pass
+		return json_response(queue_items)
+	except Exception as e:
+		return (str(e), 500)
+
+@app.route('/system/mail-queue/flush', methods=['POST'])
+@authorized_personnel_only
+def flush_mail_queue_api():
+	try:
+		code, output = utils.shell("check_output", ["/usr/sbin/postqueue", "-f"], trap=True)
+		if code != 0:
+			code, output = utils.shell("check_output", ["postqueue", "-f"], trap=True)
+		return "OK"
+	except Exception as e:
+		return (str(e), 500)
+
+@app.route('/system/mail-queue/delete', methods=['POST'])
+@authorized_personnel_only
+def delete_mail_queue_api():
+	queue_id = request.form.get('queue_id')
+	if not queue_id:
+		return ("Queue ID required", 400)
+	if not re.match(r"^[a-zA-Z0-9]+$", queue_id):
+		return ("Invalid Queue ID format", 400)
+	try:
+		code, output = utils.shell("check_output", ["/usr/sbin/postsuper", "-d", queue_id], trap=True)
+		if code != 0:
+			code, output = utils.shell("check_output", ["postsuper", "-d", queue_id], trap=True)
+		return "OK"
+	except Exception as e:
+		return (str(e), 500)
+
+# System Active Connections API
+@app.route('/system/active-connections', methods=['GET'])
+@authorized_personnel_only
+def get_active_connections_api():
+	try:
+		web_sessions = []
+		for token, session_info in auth_service.sessions.items():
+			web_sessions.append({
+				"email": session_info.get("email"),
+				"type": session_info.get("type"),
+				"token_masked": token[:8] + "..." + token[-8:] if token else ""
+			})
+
+		dovecot_connections = []
+		code, output = utils.shell("check_output", ["/usr/bin/doveadm", "connection", "list"], trap=True)
+		if code != 0:
+			code, output = utils.shell("check_output", ["doveadm", "connection", "list"], trap=True)
+		
+		if code == 0:
+			lines = output.strip().splitlines()
+			if len(lines) > 1:
+				header = lines[0].lower().split()
+				for line in lines[1:]:
+					parts = line.split()
+					if len(parts) >= len(header):
+						conn = dict(zip(header, parts))
+						dovecot_connections.append(conn)
+					else:
+						dovecot_connections.append({"raw": line})
+						
+		return json_response({
+			"web_sessions": web_sessions,
+			"dovecot_connections": dovecot_connections
+		})
+	except Exception as e:
+		return (str(e), 500)
+
+# System Backup Stats API
+@app.route('/system/backup/stats', methods=['GET'])
+@authorized_personnel_only
+def backup_stats_api():
+	from backup import backup_status
+	try:
+		return json_response(backup_status(env))
+	except Exception as e:
+		return json_response({ "error": str(e) })
+
+# System Spam & DMARC Analytics API
+@app.route('/system/spam-dmarc/stats', methods=['GET'])
+@authorized_personnel_only
+def spam_dmarc_stats_api():
+	dmarc_dir = os.path.join(env["STORAGE_ROOT"], "mail", "dmarc")
+	
+	dmarc_stats = {
+		"total_messages": 0,
+		"spf_pass": 0,
+		"spf_fail": 0,
+		"dkim_pass": 0,
+		"dkim_fail": 0,
+		"dispositions": {"none": 0, "quarantine": 0, "reject": 0},
+		"by_source_ip": {},
+		"by_domain": {},
+		"reports_count": 0
+	}
+	
+	if os.path.exists(dmarc_dir):
+		import gzip, zipfile, glob
+		import xml.etree.ElementTree as ET
+		
+		now = time.time()
+		thirty_days_ago = now - 30 * 86400
+		
+		files = []
+		for ext in ["*.xml", "*.xml.gz", "*.zip", "*.gz"]:
+			files.extend(glob.glob(os.path.join(dmarc_dir, ext)))
+			
+		files = [f for f in files if os.path.getmtime(f) >= thirty_days_ago]
+		
+		for fpath in files:
+			try:
+				content = None
+				if fpath.endswith(".gz") or fpath.endswith(".xml.gz"):
+					with gzip.open(fpath, "rb") as f:
+						content = f.read()
+				elif fpath.endswith(".zip"):
+					with zipfile.ZipFile(fpath, "r") as z:
+						for name in z.namelist():
+							if name.endswith(".xml"):
+								content = z.read(name)
+								break
+				else:
+					with open(fpath, "rb") as f:
+						content = f.read()
+						
+				if not content:
+					continue
+					
+				root = ET.fromstring(content)
+				dmarc_stats["reports_count"] += 1
+				
+				for record in root.findall(".//record"):
+					count_el = record.find(".//row/count")
+					count = int(count_el.text) if count_el is not None else 1
+					
+					dmarc_stats["total_messages"] += count
+					
+					policy = record.find(".//row/policy_evaluated")
+					if policy is not None:
+						disp_el = policy.find("disposition")
+						if disp_el is not None:
+							disp = disp_el.text
+							dmarc_stats["dispositions"][disp] = dmarc_stats["dispositions"].get(disp, 0) + count
+							
+						dkim_el = policy.find("dkim")
+						if dkim_el is not None:
+							if dkim_el.text == "pass":
+								dmarc_stats["dkim_pass"] += count
+							else:
+								dmarc_stats["dkim_fail"] += count
+								
+						spf_el = policy.find("spf")
+						if spf_el is not None:
+							if spf_el.text == "pass":
+								dmarc_stats["spf_pass"] += count
+							else:
+								dmarc_stats["spf_fail"] += count
+								
+					src_ip_el = record.find(".//row/source_ip")
+					if src_ip_el is not None:
+						ip = src_ip_el.text
+						dmarc_stats["by_source_ip"][ip] = dmarc_stats["by_source_ip"].get(ip, 0) + count
+								
+					hdr_from_el = record.find(".//identifiers/header_from")
+					if hdr_from_el is not None:
+						domain = hdr_from_el.text
+						if domain not in dmarc_stats["by_domain"]:
+							dmarc_stats["by_domain"][domain] = {"total": 0, "spf_pass": 0, "dkim_pass": 0}
+						dmarc_stats["by_domain"][domain]["total"] += count
+						if policy is not None:
+							policy_spf = policy.find("spf")
+							if policy_spf is not None and policy_spf.text == "pass":
+								dmarc_stats["by_domain"][domain]["spf_pass"] += count
+							policy_dkim = policy.find("dkim")
+							if policy_dkim is not None and policy_dkim.text == "pass":
+								dmarc_stats["by_domain"][domain]["dkim_pass"] += count
+			except Exception:
+				pass
+				
+	top_ips = sorted(dmarc_stats["by_source_ip"].items(), key=lambda x: x[1], reverse=True)[:10]
+	dmarc_stats["top_source_ips"] = [{"ip": ip, "count": count} for ip, count in top_ips]
+	
+	if "by_source_ip" in dmarc_stats:
+		del dmarc_stats["by_source_ip"]
+		
+	# Include spam block rates for the last 7 days
+	import mail_log
+	orig_end = getattr(mail_log, 'END_DATE', None)
+	orig_now = getattr(mail_log, 'NOW', None)
+	orig_start = getattr(mail_log, 'START_DATE', None)
+	
+	mail_log.END_DATE = datetime.datetime.now()
+	mail_log.NOW = mail_log.END_DATE
+	mail_log.START_DATE = mail_log.END_DATE - datetime.timedelta(days=7)
+	mail_log.SCAN_IN = True
+	mail_log.SCAN_OUT = False
+	mail_log.SCAN_DOVECOT_LOGIN = False
+	mail_log.SCAN_GREY = False
+	mail_log.SCAN_BLOCKED = True
+	mail_log.FILTERS = None
+	mail_log.VERBOSE = False
+	
+	spam_stats = {
+		"received": 0,
+		"blocked": 0,
+	}
+	
+	try:
+		with SilenceStdout():
+			collector = mail_log.scan_mail_log(env)
+		if collector:
+			for user, data in collector.get("received_mail", {}).items():
+				spam_stats["received"] += data.get("received_count", 0)
+			for user, data in collector.get("rejected", {}).items():
+				spam_stats["blocked"] += len(data.get("blocked", []))
+	except Exception:
+		pass
+	finally:
+		if orig_end: mail_log.END_DATE = orig_end
+		if orig_now: mail_log.NOW = orig_now
+		if orig_start: mail_log.START_DATE = orig_start
+		
+	return json_response({
+		"dmarc": dmarc_stats,
+		"spam_7days": spam_stats
+	})
+
 
 # APP
+
 
 if __name__ == '__main__':
 	if "DEBUG" in os.environ:

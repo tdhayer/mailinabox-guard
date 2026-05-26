@@ -5,100 +5,395 @@
 	</div>
 </div>
 
-<!-- Metrics Quick View -->
-<div class="metrics-grid">
-	<div class="metric-card">
-		<div class="metric-title">CPU Load</div>
-		<div class="metric-value" id="metric-cpu">--%</div>
-		<div class="progress-bar-container">
-			<div id="pb-cpu" class="progress-bar-fill progress-success" style="width: 0%"></div>
+<!-- Tabs Navigation -->
+<div class="dashboard-tabs">
+	<button class="dashboard-tab-btn active" onclick="switchTab('overview')">Overview</button>
+	<button class="dashboard-tab-btn" onclick="switchTab('queue')">Mail Queue</button>
+	<button class="dashboard-tab-btn" onclick="switchTab('connections')">Active Connections</button>
+	<button class="dashboard-tab-btn" onclick="switchTab('backup')">Backup Health</button>
+	<button class="dashboard-tab-btn" onclick="switchTab('security')">Security &amp; DMARC</button>
+</div>
+
+<!-- Overview Tab -->
+<div id="tab-overview" class="dashboard-tab-content active">
+	<!-- Metrics Quick View -->
+	<div class="metrics-grid">
+		<div class="metric-card">
+			<div class="metric-title">CPU Load</div>
+			<div class="metric-value" id="metric-cpu">--%</div>
+			<div class="progress-bar-container">
+				<div id="pb-cpu" class="progress-bar-fill progress-success" style="width: 0%"></div>
+			</div>
+			<div class="metric-footer text-muted" id="metric-cpu-desc">Loading processor usage...</div>
 		</div>
-		<div class="metric-footer text-muted" id="metric-cpu-desc">Loading processor usage...</div>
-	</div>
-	
-	<div class="metric-card">
-		<div class="metric-title">Memory (RAM)</div>
-		<div class="metric-value" id="metric-ram">--%</div>
-		<div class="progress-bar-container">
-			<div id="pb-ram" class="progress-bar-fill progress-success" style="width: 0%"></div>
+		
+		<div class="metric-card">
+			<div class="metric-title">Memory (RAM)</div>
+			<div class="metric-value" id="metric-ram">--%</div>
+			<div class="progress-bar-container">
+				<div id="pb-ram" class="progress-bar-fill progress-success" style="width: 0%"></div>
+			</div>
+			<div class="metric-footer text-muted" id="metric-ram-desc">-- GB / -- GB used</div>
 		</div>
-		<div class="metric-footer text-muted" id="metric-ram-desc">-- GB / -- GB used</div>
+
+		<div class="metric-card">
+			<div class="metric-title">Disk Storage</div>
+			<div class="metric-value" id="metric-disk">--%</div>
+			<div class="progress-bar-container">
+				<div id="pb-disk" class="progress-bar-fill progress-success" style="width: 0%"></div>
+			</div>
+			<div class="metric-footer text-muted" id="metric-disk-desc">-- GB / -- GB used</div>
+		</div>
+
+		<div class="metric-card" id="card-mail-queue">
+			<div class="metric-title">Mail Queue</div>
+			<div class="metric-value" id="metric-queue">--</div>
+			<div class="progress-bar-container">
+				<div id="pb-queue" class="progress-bar-fill progress-success" style="width: 0%"></div>
+			</div>
+			<div class="metric-footer text-muted" id="metric-queue-desc">Outbound email queue size</div>
+		</div>
 	</div>
 
-	<div class="metric-card">
-		<div class="metric-title">Disk Storage</div>
-		<div class="metric-value" id="metric-disk">--%</div>
-		<div class="progress-bar-container">
-			<div id="pb-disk" class="progress-bar-fill progress-success" style="width: 0%"></div>
+	<div class="row">
+		<!-- Services Status -->
+		<div class="col-md-4">
+			<div class="panel">
+				<div class="panel-heading">
+					<h3>System Services</h3>
+				</div>
+				<div class="panel-body" style="padding: 0;">
+					<table class="table" style="margin: 0; border: none;">
+						<tbody>
+							<tr>
+								<td>Web Server (Nginx)</td>
+								<td class="text-right"><span id="svc-nginx" class="badge-status">--</span></td>
+							</tr>
+							<tr>
+								<td>Mail Transfer (Postfix)</td>
+								<td class="text-right"><span id="svc-postfix" class="badge-status">--</span></td>
+							</tr>
+							<tr>
+								<td>IMAP/POP3 (Dovecot)</td>
+								<td class="text-right"><span id="svc-dovecot" class="badge-status">--</span></td>
+							</tr>
+							<tr>
+								<td>Intrusion Prev. (Fail2ban)</td>
+								<td class="text-right"><span id="svc-fail2ban" class="badge-status">--</span></td>
+							</tr>
+							<tr>
+								<td>DKIM Signing (OpenDKIM)</td>
+								<td class="text-right"><span id="svc-opendkim" class="badge-status">--</span></td>
+							</tr>
+							<tr>
+								<td>Spam Filter (Spampd)</td>
+								<td class="text-right"><span id="svc-spampd" class="badge-status">--</span></td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</div>
 		</div>
-		<div class="metric-footer text-muted" id="metric-disk-desc">-- GB / -- GB used</div>
-	</div>
 
-	<div class="metric-card" id="card-mail-queue">
-		<div class="metric-title">Mail Queue</div>
-		<div class="metric-value" id="metric-queue">--</div>
-		<div class="progress-bar-container">
-			<div id="pb-queue" class="progress-bar-fill progress-success" style="width: 0%"></div>
+		<!-- Email Stats Chart -->
+		<div class="col-md-8">
+			<div class="panel">
+				<div class="panel-heading" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+					<h3 style="margin: 0; border: none;">Email Traffic Stats</h3>
+					<div class="btn-group" role="group" style="margin-top: -5px;">
+						<button type="button" class="btn btn-default btn-xs active" onclick="load_traffic_stats('today', this)">Today</button>
+						<button type="button" class="btn btn-default btn-xs" onclick="load_traffic_stats('2days', this)">48h</button>
+						<button type="button" class="btn btn-default btn-xs" onclick="load_traffic_stats('week', this)">Week</button>
+						<button type="button" class="btn btn-default btn-xs" onclick="load_traffic_stats('month', this)">Month</button>
+					</div>
+				</div>
+				<div class="panel-body">
+					<div style="position: relative; height: 260px; width: 100%;">
+						<canvas id="chart-traffic"></canvas>
+					</div>
+				</div>
+			</div>
 		</div>
-		<div class="metric-footer text-muted" id="metric-queue-desc">Outbound email queue size</div>
 	</div>
 </div>
 
-<div class="row">
-	<!-- Services Status -->
-	<div class="col-md-4">
-		<div class="panel">
-			<div class="panel-heading">
-				<h3>System Services</h3>
+<!-- Mail Queue Tab -->
+<div id="tab-queue" class="dashboard-tab-content">
+	<div class="panel">
+		<div class="panel-heading" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+			<h3 style="margin: 0; border: none;">Outbound Mail Queue</h3>
+			<div>
+				<button class="btn btn-primary btn-sm" onclick="flushMailQueue()" style="margin-right: 8px;">
+					<span class="glyphicon glyphicon-send"></span> Flush Queue
+				</button>
+				<button class="btn btn-default btn-sm" onclick="loadMailQueue()">
+					<span class="glyphicon glyphicon-refresh"></span> Refresh
+				</button>
 			</div>
-			<div class="panel-body" style="padding: 0;">
+		</div>
+		<div class="panel-body">
+			<div class="table-responsive">
+				<table class="table table-hover" id="table-mail-queue">
+					<thead>
+						<tr>
+							<th>Queue ID</th>
+							<th>Arrival Time</th>
+							<th>Size (bytes)</th>
+							<th>Sender</th>
+							<th>Recipients / Deferral Reason</th>
+							<th style="width: 80px; text-align: center;">Action</th>
+						</tr>
+					</thead>
+					<tbody id="mail-queue-tbody">
+						<!-- Populated by JS -->
+					</tbody>
+				</table>
+			</div>
+			<div id="mail-queue-empty-msg" style="display: none; text-align: center; padding: 40px; color: var(--text-muted);">
+				<span class="glyphicon glyphicon-ok-sign" style="font-size: 3rem; color: var(--success); margin-bottom: 12px; display: block;"></span>
+				<strong>Outbound mail queue is empty</strong>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- Active Connections Tab -->
+<div id="tab-connections" class="dashboard-tab-content">
+	<div class="row">
+		<!-- Web Sessions -->
+		<div class="col-md-6">
+			<div class="panel">
+				<div class="panel-heading" style="display: flex; justify-content: space-between; align-items: center;">
+					<h3 style="margin: 0; border: none;">Active Web Sessions</h3>
+					<button class="btn btn-default btn-xs" onclick="loadActiveConnections()">
+						<span class="glyphicon glyphicon-refresh"></span>
+					</button>
+				</div>
+				<div class="panel-body" style="padding: 0;">
+					<table class="table" style="margin: 0; border: none;">
+						<thead>
+							<tr>
+								<th>User Account</th>
+								<th>Session Type</th>
+								<th>Token (Masked)</th>
+							</tr>
+						</thead>
+						<tbody id="web-sessions-tbody">
+							<!-- Populated by JS -->
+						</tbody>
+					</table>
+					<div id="web-sessions-empty" style="display: none; padding: 20px; text-align: center; color: var(--text-muted);">
+						No active web sessions.
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Dovecot Active Connections -->
+		<div class="col-md-6">
+			<div class="panel">
+				<div class="panel-heading" style="display: flex; justify-content: space-between; align-items: center;">
+					<h3 style="margin: 0; border: none;">Dovecot / IMAP Active Connections</h3>
+					<button class="btn btn-default btn-xs" onclick="loadActiveConnections()">
+						<span class="glyphicon glyphicon-refresh"></span>
+					</button>
+				</div>
+				<div class="panel-body" style="padding: 0;">
+					<table class="table" style="margin: 0; border: none;">
+						<thead>
+							<tr>
+								<th>User</th>
+								<th>IP Address</th>
+								<th>Service</th>
+								<th>Connection Details</th>
+							</tr>
+						</thead>
+						<tbody id="dovecot-connections-tbody">
+							<!-- Populated by JS -->
+						</tbody>
+					</table>
+					<div id="dovecot-connections-empty" style="display: none; padding: 20px; text-align: center; color: var(--text-muted);">
+						No active mail client connections.
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- Backup Health Tab -->
+<div id="tab-backup" class="dashboard-tab-content">
+	<div class="row">
+		<div class="col-md-4">
+			<div class="stat-summary-box">
+				<div class="stat-summary-num" id="backup-total-count">--</div>
+				<div class="stat-summary-label">Total Backup Archiving Chains</div>
+			</div>
+			<div class="stat-summary-box">
+				<div class="stat-summary-num text-success" id="backup-last-date" style="font-size: 1.4rem; word-break: break-all;">--</div>
+				<div class="stat-summary-label">Last Backup Execution</div>
+			</div>
+			<div class="stat-summary-box">
+				<div class="stat-summary-num text-info" id="backup-total-size">-- GB</div>
+				<div class="stat-summary-label">Total Storage Footprint</div>
+			</div>
+		</div>
+		
+		<div class="col-md-8">
+			<div class="panel">
+				<div class="panel-heading">
+					<h3 style="margin: 0; border: none;">Backup Storage History (Size Trend)</h3>
+				</div>
+				<div class="panel-body">
+					<div class="chart-container-half">
+						<canvas id="chart-backup"></canvas>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="panel">
+		<div class="panel-heading">
+			<h3 style="margin: 0; border: none;">Detailed Backups List</h3>
+		</div>
+		<div class="panel-body" style="padding: 0;">
+			<div class="table-responsive">
 				<table class="table" style="margin: 0; border: none;">
-					<tbody>
+					<thead>
 						<tr>
-							<td>Web Server (Nginx)</td>
-							<td class="text-right"><span id="svc-nginx" class="badge-status">--</span></td>
+							<th>Date</th>
+							<th>Age</th>
+							<th>Type</th>
+							<th>Size</th>
+							<th>Volumes</th>
+							<th>Will Delete In</th>
 						</tr>
-						<tr>
-							<td>Mail Transfer (Postfix)</td>
-							<td class="text-right"><span id="svc-postfix" class="badge-status">--</span></td>
-						</tr>
-						<tr>
-							<td>IMAP/POP3 (Dovecot)</td>
-							<td class="text-right"><span id="svc-dovecot" class="badge-status">--</span></td>
-						</tr>
-						<tr>
-							<td>Intrusion Prev. (Fail2ban)</td>
-							<td class="text-right"><span id="svc-fail2ban" class="badge-status">--</span></td>
-						</tr>
-						<tr>
-							<td>DKIM Signing (OpenDKIM)</td>
-							<td class="text-right"><span id="svc-opendkim" class="badge-status">--</span></td>
-						</tr>
-						<tr>
-							<td>Spam Filter (Spampd)</td>
-							<td class="text-right"><span id="svc-spampd" class="badge-status">--</span></td>
-						</tr>
+					</thead>
+					<tbody id="backups-list-tbody">
+						<!-- Populated by JS -->
 					</tbody>
 				</table>
 			</div>
 		</div>
 	</div>
+</div>
 
-	<!-- Email Stats Chart -->
-	<div class="col-md-8">
-		<div class="panel">
-			<div class="panel-heading" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
-				<h3 style="margin: 0; border: none;">Email Traffic Stats</h3>
-				<div class="btn-group" role="group" style="margin-top: -5px;">
-					<button type="button" class="btn btn-default btn-xs active" onclick="load_traffic_stats('today', this)">Today</button>
-					<button type="button" class="btn btn-default btn-xs" onclick="load_traffic_stats('2days', this)">48h</button>
-					<button type="button" class="btn btn-default btn-xs" onclick="load_traffic_stats('week', this)">Week</button>
-					<button type="button" class="btn btn-default btn-xs" onclick="load_traffic_stats('month', this)">Month</button>
+<!-- Security & DMARC Tab -->
+<div id="tab-security" class="dashboard-tab-content">
+	<div class="row">
+		<div class="col-md-4">
+			<div class="panel">
+				<div class="panel-heading">
+					<h3 style="margin: 0; border: none;">DMARC Auth Results</h3>
+				</div>
+				<div class="panel-body">
+					<div class="chart-container-half" style="height: 200px;">
+						<canvas id="chart-security-dmarc"></canvas>
+					</div>
+					<div style="text-align: center; margin-top: 15px; font-size: 0.85rem; color: var(--text-muted);" id="dmarc-total-desc">
+						-- total messages evaluated (last 30 days)
+					</div>
 				</div>
 			</div>
-			<div class="panel-body">
-				<div style="position: relative; height: 260px; width: 100%;">
-					<canvas id="chart-traffic"></canvas>
+		</div>
+
+		<div class="col-md-4">
+			<div class="panel">
+				<div class="panel-heading">
+					<h3 style="margin: 0; border: none;">Spam Protection (7 Days)</h3>
+				</div>
+				<div class="panel-body">
+					<div class="chart-container-half" style="height: 200px;">
+						<canvas id="chart-security-spam"></canvas>
+					</div>
+					<div style="text-align: center; margin-top: 15px; font-size: 0.85rem; color: var(--text-muted);" id="spam-total-desc">
+						-- messages processed (last 7 days)
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="col-md-4">
+			<div class="panel">
+				<div class="panel-heading">
+					<h3 style="margin: 0; border: none;">DMARC Policy Action</h3>
+				</div>
+				<div class="panel-body" style="padding: 0;">
+					<table class="table" style="margin: 0; border: none;">
+						<thead>
+							<tr>
+								<th>Disposition</th>
+								<th class="text-right">Count</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td>None (Delivered)</td>
+								<td class="text-right" id="disp-none">--</td>
+							</tr>
+							<tr>
+								<td>Quarantine</td>
+								<td class="text-right" id="disp-quarantine">--</td>
+							</tr>
+							<tr>
+								<td>Reject (Blocked)</td>
+								<td class="text-right" id="disp-reject">--</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="row">
+		<div class="col-md-6">
+			<div class="panel">
+				<div class="panel-heading">
+					<h3 style="margin: 0; border: none;">Top Sending IPs (Threat Source)</h3>
+				</div>
+				<div class="panel-body" style="padding: 0;">
+					<table class="table" style="margin: 0; border: none;">
+						<thead>
+							<tr>
+								<th>Source IP</th>
+								<th class="text-right">Messages Sent</th>
+							</tr>
+						</thead>
+						<tbody id="dmarc-ips-tbody">
+							<!-- Populated by JS -->
+						</tbody>
+					</table>
+					<div id="dmarc-ips-empty" style="display: none; padding: 20px; text-align: center; color: var(--text-muted);">
+						No sending IPs recorded.
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="col-md-6">
+			<div class="panel">
+				<div class="panel-heading">
+					<h3 style="margin: 0; border: none;">Sending Domains Compliance</h3>
+				</div>
+				<div class="panel-body" style="padding: 0;">
+					<table class="table" style="margin: 0; border: none;">
+						<thead>
+							<tr>
+								<th>Domain</th>
+								<th class="text-right">SPF Pass %</th>
+								<th class="text-right">DKIM Pass %</th>
+								<th class="text-right">Total</th>
+							</tr>
+						</thead>
+						<tbody id="dmarc-domains-tbody">
+							<!-- Populated by JS -->
+						</tbody>
+					</table>
+					<div id="dmarc-domains-empty" style="display: none; padding: 20px; text-align: center; color: var(--text-muted);">
+						No domain compliance stats.
+					</div>
 				</div>
 			</div>
 		</div>
@@ -107,6 +402,9 @@
 
 <script>
 var trafficChart = null;
+var backupChart = null;
+var dmarcChart = null;
+var spamChart = null;
 
 function show_welcome() {
 	// Periodically refresh realtime metrics
@@ -114,7 +412,7 @@ function show_welcome() {
 	if (window.metricsTimer) clearInterval(window.metricsTimer);
 	window.metricsTimer = setInterval(refresh_realtime_metrics, 10000);
 
-	// Load traffic charts
+	// Load traffic stats for the active tab (Overview is active by default)
 	load_traffic_stats('today');
 }
 
@@ -153,7 +451,7 @@ function refresh_realtime_metrics() {
 		// Queue
 		var qVal = data.mail_queue;
 		$('#metric-queue').text(qVal);
-		var qPct = Math.min(100, qVal * 10); // scale bar to 10 emails
+		var qPct = Math.min(100, qVal * 10);
 		$('#pb-queue').css('width', qPct + '%').attr('class', 'progress-bar-fill ' + (qVal > 5 ? 'progress-error' : (qVal > 0 ? 'progress-warning' : 'progress-success')));
 		$('#metric-queue-desc').text(qVal === 0 ? 'Mail queue is clear' : qVal + ' messages waiting to deliver');
 		if (qVal > 0) {
@@ -190,10 +488,6 @@ function load_traffic_stats(timespan, btn) {
 
 	api("/mail/stats?timespan=" + timespan, "GET", {}, function(stats) {
 		var labels = [];
-		var sentData = [];
-		var rcvdData = [];
-		var blockedData = [];
-
 		var hours = Array.from({length: 24}, (_, i) => i);
 		labels = hours.map(h => h + ":00");
 
@@ -201,7 +495,6 @@ function load_traffic_stats(timespan, btn) {
 		var hourlyRcvd = Array(24).fill(0);
 		var hourlyBlocked = Array(24).fill(0);
 
-		// Sent mail hours
 		$.each(stats.sent_mail, function(user, udata) {
 			if (udata["activity-by-hour"]) {
 				$.each(udata["activity-by-hour"], function(h, cnt) {
@@ -211,7 +504,6 @@ function load_traffic_stats(timespan, btn) {
 			}
 		});
 
-		// Received mail hours
 		$.each(stats.received_mail, function(user, udata) {
 			if (udata["activity-by-hour"]) {
 				$.each(udata["activity-by-hour"], function(h, cnt) {
@@ -221,7 +513,6 @@ function load_traffic_stats(timespan, btn) {
 			}
 		});
 
-		// Blocked mail hours
 		$.each(stats.rejected, function(user, udata) {
 			if (udata.blocked) {
 				$.each(udata.blocked, function(idx, item) {
@@ -241,7 +532,6 @@ function load_traffic_stats(timespan, btn) {
 
 function render_chart(labels, sent, received, blocked) {
 	var ctx = document.getElementById('chart-traffic').getContext('2d');
-	
 	if (trafficChart) {
 		trafficChart.destroy();
 	}
@@ -288,31 +578,372 @@ function render_chart(labels, sent, received, blocked) {
 				legend: {
 					labels: {
 						color: textColor,
-						font: {
-							family: 'Plus Jakarta Sans'
-						}
+						font: { family: 'Plus Jakarta Sans' }
 					}
 				}
 			},
 			scales: {
 				x: {
-					grid: {
-						color: gridColor
-					},
-					ticks: {
-						color: textColor
-					}
+					grid: { color: gridColor },
+					ticks: { color: textColor }
 				},
 				y: {
-					grid: {
-						color: gridColor
-					},
+					grid: { color: gridColor },
+					ticks: { color: textColor, precision: 0 }
+				}
+			}
+		}
+	});
+}
+
+// Tab switcher logic
+function switchTab(tabId) {
+	$('.dashboard-tab-btn').removeClass('active');
+	$('.dashboard-tab-content').removeClass('active');
+	
+	$(`.dashboard-tab-btn[onclick="switchTab('${tabId}')"]`).addClass('active');
+	$(`#tab-${tabId}`).addClass('active');
+	
+	if (tabId === 'queue') {
+		loadMailQueue();
+	} else if (tabId === 'connections') {
+		loadActiveConnections();
+	} else if (tabId === 'backup') {
+		loadBackupStats();
+	} else if (tabId === 'security') {
+		loadSecurityStats();
+	}
+}
+
+// Mail Queue functions
+function loadMailQueue() {
+	api("/system/mail-queue", "GET", {}, function(data) {
+		var tbody = $('#mail-queue-tbody');
+		tbody.empty();
+		
+		if (!data || data.length === 0) {
+			$('#table-mail-queue').hide();
+			$('#mail-queue-empty-msg').show();
+			return;
+		}
+		
+		$('#table-mail-queue').show();
+		$('#mail-queue-empty-msg').hide();
+		
+		$.each(data, function(idx, item) {
+			var arrival = new Date(item.arrival_time * 1000).toLocaleString();
+			var sender = item.sender || '<empty>';
+			var size = item.message_size;
+			
+			var recipsHtml = '';
+			if (item.recipients) {
+				$.each(item.recipients, function(rIdx, r) {
+					var reason = r.delay_reason ? '<pre class="mono-pre">' + r.delay_reason + '</pre>' : '<span class="text-success">Active / Ready</span>';
+					recipsHtml += '<div><strong>To:</strong> ' + r.address + '<br>' + reason + '</div>';
+				});
+			}
+			
+			var row = $('<tr></tr>');
+			row.append('<td><code>' + item.queue_id + '</code></td>');
+			row.append('<td>' + arrival + '</td>');
+			row.append('<td>' + size + '</td>');
+			row.append('<td>' + sender + '</td>');
+			row.append('<td>' + recipsHtml + '</td>');
+			row.append('<td style="text-align: center;"><button class="btn btn-danger btn-xs" onclick="deleteQueueItem(\'' + item.queue_id + '\')"><span class="glyphicon glyphicon-trash"></span> Remove</button></td>');
+			tbody.append(row);
+		});
+	});
+}
+
+function deleteQueueItem(queueId) {
+	if (!confirm('Are you sure you want to delete message ' + queueId + ' from the queue?')) return;
+	api("/system/mail-queue/delete", "POST", { queue_id: queueId }, function(res) {
+		loadMailQueue();
+		refresh_realtime_metrics();
+	});
+}
+
+function flushMailQueue() {
+	api("/system/mail-queue/flush", "POST", {}, function(res) {
+		alert('Mail queue flush initiated.');
+		loadMailQueue();
+		refresh_realtime_metrics();
+	});
+}
+
+// Active connections functions
+function loadActiveConnections() {
+	api("/system/active-connections", "GET", {}, function(data) {
+		var webTbody = $('#web-sessions-tbody');
+		webTbody.empty();
+		if (!data.web_sessions || data.web_sessions.length === 0) {
+			$('#web-sessions-empty').show();
+		} else {
+			$('#web-sessions-empty').hide();
+			$.each(data.web_sessions, function(idx, s) {
+				var email = s.email || 'System / API Key';
+				var type = s.type || 'unknown';
+				var row = $('<tr></tr>');
+				row.append('<td><strong>' + email + '</strong></td>');
+				row.append('<td><span class="badge conn-badge-web">' + type + '</span></td>');
+				row.append('<td><code>' + s.token_masked + '</code></td>');
+				webTbody.append(row);
+			});
+		}
+
+		var dovTbody = $('#dovecot-connections-tbody');
+		dovTbody.empty();
+		if (!data.dovecot_connections || data.dovecot_connections.length === 0) {
+			$('#dovecot-connections-empty').show();
+		} else {
+			$('#dovecot-connections-empty').hide();
+			$.each(data.dovecot_connections, function(idx, c) {
+				var row = $('<tr></tr>');
+				if (c.raw) {
+					row.append('<td colspan="4"><code>' + c.raw + '</code></td>');
+				} else {
+					var user = c.username || 'unknown';
+					var ip = c.ip || c.rip || '--';
+					var svc = c.service || '--';
+					var details = [];
+					if (c.type) details.push('Type: ' + c.type);
+					if (c.port) details.push('Port: ' + c.port);
+					if (c.pid) details.push('PID: ' + c.pid);
+					
+					row.append('<td><strong>' + user + '</strong></td>');
+					row.append('<td>' + ip + '</td>');
+					row.append('<td><span class="badge conn-badge-dovecot">' + svc + '</span></td>');
+					row.append('<td><small class="text-muted">' + details.join(', ') + '</small></td>');
+				}
+				dovTbody.append(row);
+			});
+		}
+	});
+}
+
+// Backup functions
+function loadBackupStats() {
+	api("/system/backup/stats", "GET", {}, function(data) {
+		var backups = data.backups || [];
+		var unmatched = data.unmatched_file_size || 0;
+		
+		$('#backup-total-count').text(backups.length);
+		
+		var totalSize = unmatched;
+		var lastDate = '--';
+		
+		var tbody = $('#backups-list-tbody');
+		tbody.empty();
+		
+		var chartLabels = [];
+		var chartSizes = [];
+		
+		if (backups.length > 0) {
+			lastDate = backups[0].date_str || backups[0].date_delta;
+			
+			var chronBackups = backups.slice().reverse();
+			$.each(chronBackups, function(idx, b) {
+				var labelDate = b.date_str ? b.date_str.split(' ')[0] : (b.date || '').substring(0,10);
+				chartLabels.push(labelDate);
+				chartSizes.push((b.size / (1024*1024*1024)).toFixed(2));
+			});
+			
+			$.each(backups, function(idx, b) {
+				totalSize += b.size;
+				var typeBadge = b.full ? '<span class="label label-primary">Full</span>' : '<span class="label label-default">Incremental</span>';
+				var sizeGB = (b.size / (1024*1024*1024)).toFixed(2) + ' GB';
+				
+				var row = $('<tr></tr>');
+				row.append('<td>' + (b.date_str || b.date) + '</td>');
+				row.append('<td>' + b.date_delta + ' ago</td>');
+				row.append('<td>' + typeBadge + '</td>');
+				row.append('<td>' + sizeGB + '</td>');
+				row.append('<td>' + b.volumes + '</td>');
+				row.append('<td>' + (b.deleted_in || 'Never') + '</td>');
+				tbody.append(row);
+			});
+		} else {
+			tbody.append('<tr><td colspan="6" class="text-center text-muted">No backups found.</td></tr>');
+		}
+		
+		$('#backup-last-date').text(lastDate);
+		$('#backup-total-size').text((totalSize / (1024*1024*1024)).toFixed(2) + ' GB');
+		
+		renderBackupChart(chartLabels, chartSizes);
+	});
+}
+
+function renderBackupChart(labels, sizes) {
+	var ctx = document.getElementById('chart-backup').getContext('2d');
+	if (backupChart) {
+		backupChart.destroy();
+	}
+	
+	var isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+	var textColor = isDark ? '#94a3b8' : '#64748b';
+	var gridColor = isDark ? '#1e293b' : '#e2e8f0';
+	
+	backupChart = new Chart(ctx, {
+		type: 'bar',
+		data: {
+			labels: labels,
+			datasets: [{
+				label: 'Backup Size (GB)',
+				data: sizes,
+				backgroundColor: 'rgba(79, 70, 229, 0.65)',
+				borderColor: '#4f46e5',
+				borderWidth: 1,
+				borderRadius: 4
+			}]
+		},
+		options: {
+			responsive: true,
+			maintainAspectRatio: false,
+			plugins: {
+				legend: { display: false }
+			},
+			scales: {
+				x: {
+					grid: { color: gridColor },
+					ticks: { color: textColor }
+				},
+				y: {
+					grid: { color: gridColor },
 					ticks: {
 						color: textColor,
-						precision: 0
+						callback: function(value) { return value + ' GB'; }
 					}
 				}
 			}
+		}
+	});
+}
+
+// Security & DMARC functions
+function loadSecurityStats() {
+	api("/system/spam-dmarc/stats", "GET", {}, function(data) {
+		var dmarc = data.dmarc || {};
+		$('#dmarc-total-desc').text((dmarc.total_messages || 0) + ' total messages evaluated (last 30 days)');
+		
+		var disps = dmarc.dispositions || {};
+		$('#disp-none').text(disps.none || 0);
+		$('#disp-quarantine').text(disps.quarantine || 0);
+		$('#disp-reject').text(disps.reject || 0);
+		
+		var ipsTbody = $('#dmarc-ips-tbody');
+		ipsTbody.empty();
+		if (!dmarc.top_source_ips || dmarc.top_source_ips.length === 0) {
+			$('#dmarc-ips-empty').show();
+		} else {
+			$('#dmarc-ips-empty').hide();
+			$.each(dmarc.top_source_ips, function(idx, item) {
+				var row = $('<tr></tr>');
+				row.append('<td><code>' + item.ip + '</code></td>');
+				row.append('<td class="text-right">' + item.count + '</td>');
+				ipsTbody.append(row);
+			});
+		}
+		
+		var domainsTbody = $('#dmarc-domains-tbody');
+		domainsTbody.empty();
+		var domainsList = Object.keys(dmarc.by_domain || {});
+		if (domainsList.length === 0) {
+			$('#dmarc-domains-empty').show();
+		} else {
+			$('#dmarc-domains-empty').hide();
+			$.each(dmarc.by_domain, function(domain, stats) {
+				var spfPct = stats.total > 0 ? Math.round((stats.spf_pass / stats.total) * 100) : 0;
+				var dkimPct = stats.total > 0 ? Math.round((stats.dkim_pass / stats.total) * 100) : 0;
+				
+				var row = $('<tr></tr>');
+				row.append('<td><strong>' + domain + '</strong></td>');
+				row.append('<td class="text-right ' + (spfPct < 50 ? 'text-danger' : (spfPct < 90 ? 'text-warning' : 'text-success')) + '">' + spfPct + '%</td>');
+				row.append('<td class="text-right ' + (dkimPct < 50 ? 'text-danger' : (dkimPct < 90 ? 'text-warning' : 'text-success')) + '">' + dkimPct + '%</td>');
+				row.append('<td class="text-right">' + stats.total + '</td>');
+				domainsTbody.append(row);
+			});
+		}
+		
+		renderDmarcChart(dmarc.spf_pass || 0, dmarc.spf_fail || 0, dmarc.dkim_pass || 0, dmarc.dkim_fail || 0);
+		
+		var spam = data.spam_7days || { received: 0, blocked: 0 };
+		var totalSpamProcessed = spam.received + spam.blocked;
+		$('#spam-total-desc').text(totalSpamProcessed + ' messages processed (last 7 days)');
+		
+		renderSpamChart(spam.received, spam.blocked);
+	});
+}
+
+function renderDmarcChart(spfPass, spfFail, dkimPass, dkimFail) {
+	var ctx = document.getElementById('chart-security-dmarc').getContext('2d');
+	if (dmarcChart) {
+		dmarcChart.destroy();
+	}
+	
+	var isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+	var textColor = isDark ? '#94a3b8' : '#64748b';
+	
+	dmarcChart = new Chart(ctx, {
+		type: 'doughnut',
+		data: {
+			labels: ['SPF Pass', 'SPF Fail', 'DKIM Pass', 'DKIM Fail'],
+			datasets: [{
+				data: [spfPass, spfFail, dkimPass, dkimFail],
+				backgroundColor: ['#10b981', '#ef4444', '#3b82f6', '#f59e0b'],
+				borderWidth: 0
+			}]
+		},
+		options: {
+			responsive: true,
+			maintainAspectRatio: false,
+			plugins: {
+				legend: {
+					position: 'bottom',
+					labels: {
+						color: textColor,
+						boxWidth: 12,
+						font: { size: 10 }
+					}
+				}
+			},
+			cutout: '60%'
+		}
+	});
+}
+
+function renderSpamChart(received, blocked) {
+	var ctx = document.getElementById('chart-security-spam').getContext('2d');
+	if (spamChart) {
+		spamChart.destroy();
+	}
+	
+	var isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+	var textColor = isDark ? '#94a3b8' : '#64748b';
+	
+	spamChart = new Chart(ctx, {
+		type: 'doughnut',
+		data: {
+			labels: ['Accepted', 'Spam Blocked'],
+			datasets: [{
+				data: [received, blocked],
+				backgroundColor: ['#10b981', '#ef4444'],
+				borderWidth: 0
+			}]
+		},
+		options: {
+			responsive: true,
+			maintainAspectRatio: false,
+			plugins: {
+				legend: {
+					position: 'bottom',
+					labels: {
+						color: textColor,
+						boxWidth: 12,
+						font: { size: 10 }
+					}
+				}
+			},
+			cutout: '60%'
 		}
 	});
 }
