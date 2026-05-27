@@ -98,10 +98,20 @@ def _get_spamassassin_threshold():
 	return DEFAULT_SPAM_THRESHOLD
 
 
+def _get_editconf_path():
+	prod_path = "/usr/local/lib/mailinabox/editconf.py"
+	if os.path.exists(prod_path):
+		return prod_path
+	dev_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "tools", "editconf.py"))
+	if os.path.exists(dev_path):
+		return dev_path
+	return prod_path
+
+
 def _set_spamassassin_threshold(threshold):
 	"""Set required_score in SpamAssassin local.cf using editconf."""
 	utils.shell("check_call", [
-		"python3", "/usr/local/lib/mailinabox/editconf.py",
+		"python3", _get_editconf_path(),
 		SPAMASSASSIN_LOCAL_CF, "-s",
 		f"required_score={threshold}"
 	])
