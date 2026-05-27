@@ -15,10 +15,10 @@
   <form id="addalias-form" role="form" onsubmit="do_add_alias(); return false;">
     <div class="form-group" style="margin-bottom: 1.5rem;">
       <label style="display: block; margin-bottom: 8px;">Alias Type</label>
-      <div id="alias_type_buttons" class="btn-group">
-        <button type="button" class="btn btn-default" data-mode="regular">Regular</button>
-        <button type="button" class="btn btn-default" data-mode="catchall">Catch-All</button>
-        <button type="button" class="btn btn-default" data-mode="domainalias">Domain Alias</button>
+      <div id="alias_type_buttons" class="dashboard-tabs" style="margin-bottom: 1rem;">
+        <button type="button" class="dashboard-tab-btn" data-mode="regular">Regular</button>
+        <button type="button" class="dashboard-tab-btn" data-mode="catchall">Catch-All</button>
+        <button type="button" class="dashboard-tab-btn" data-mode="domainalias">Domain Alias</button>
       </div>
       <div id="alias_mode_info" class="text-info small" style="display: none; margin-top: 8px;">
         <span class="catchall hidden">A catch-all alias captures all otherwise unmatched email to a domain.</span>
