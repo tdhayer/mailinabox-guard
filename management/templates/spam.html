@@ -107,7 +107,7 @@
 	</div>
 
 	<div class="form-group">
-		<button type="button" class="btn btn-primary" onclick="save_spam_settings()">Save Settings</button>
+		<button type="button" id="save-spam-settings-btn" class="btn btn-primary" onclick="save_spam_settings()">Save Settings</button>
 	</div>
 
 	<!-- ============================================================ -->
@@ -292,6 +292,12 @@ function toggle_greylisting_options() {
 }
 
 function save_spam_settings() {
+	var btn = $('#save-spam-settings-btn');
+	var elementsToDisable = $('#save-spam-settings-btn, #spam-threshold-slider, #greylisting-enabled, #greylisting-delay, #spamhaus-dqs-key, #spamhaus-zen-enabled, #spamhaus-dbl-enabled, #spamhaus-zrd-enabled');
+	
+	btn.html('<span class="fa fa-spinner fa-spin"></span> Saving Settings...');
+	elementsToDisable.prop('disabled', true);
+
 	var data = {
 		spamassassin_threshold: $('#spam-threshold-slider').val(),
 		greylisting_enabled: $('#greylisting-enabled').is(':checked') ? 'true' : 'false',
@@ -307,9 +313,13 @@ function save_spam_settings() {
 		"POST",
 		data,
 		function(r) {
+			elementsToDisable.prop('disabled', false);
+			btn.html('Save Settings');
 			show_modal_error("Spam Settings", "Settings saved successfully. Changes are now active.");
 		},
 		function(r) {
+			elementsToDisable.prop('disabled', false);
+			btn.html('Save Settings');
 			show_modal_error("Spam Settings", r);
 		}
 	);
