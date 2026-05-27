@@ -310,6 +310,26 @@ class TestDashboardAPIs(unittest.TestCase):
         # Cleanup sessions
         daemon.auth_service.sessions.clear()
 
+    @patch('daemon.auth_service.authenticate')
+    @patch('daemon.set_spam_config')
+    @patch('daemon.audit.log_admin_action')
+    def test_spam_set_settings(self, mock_log_action, mock_set_config, mock_authenticate):
+        mock_authenticate.return_value = ('admin@example.com', ['admin'])
+        mock_set_config.return_value = "OK"
+        
+        response = self.app.post('/spam/settings', data={
+            'spamassassin_threshold': '5.0',
+            'greylisting_enabled': 'true',
+            'greylisting_delay': '180',
+            'spamhaus_dqs_key': '',
+            'spamhaus_zen_enabled': 'true',
+            'spamhaus_dbl_enabled': 'true',
+            'spamhaus_zrd_enabled': 'false'
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data.decode('utf-8'), 'OK')
+        mock_log_action.assert_called_once()
+
 if __name__ == '__main__':
     unittest.main()
 

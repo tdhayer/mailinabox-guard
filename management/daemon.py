@@ -393,6 +393,9 @@ def spam_set_settings():
 		return res
 	except ValueError as e:
 		return (str(e), 400)
+	except Exception as e:
+		import traceback
+		return (traceback.format_exc(), 500)
 
 @app.route('/spam/lists')
 @authorized_personnel_only
