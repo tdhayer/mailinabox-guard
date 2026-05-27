@@ -20,14 +20,29 @@
       <label class="sr-only" for="adduserEmail">Email address</label>
       <input type="email" class="form-control" id="adduserEmail" placeholder="Email Address" style="width: 100%;">
     </div>
-    <div class="form-group" style="margin: 0; flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 4px;">
+    <div class="form-group" style="margin: 0; flex: 1.5; min-width: 260px; position: relative;">
       <label class="sr-only" for="adduserPassword">Password</label>
-      <input type="password" class="form-control" id="adduserPassword" placeholder="Password" style="width: 100%;">
-      <div id="adduserPasswordStrength" class="pw-strength-container" style="display: none; margin-top: 4px;">
-        <div class="pw-strength-bar-bg" style="background: var(--bg-app); border-radius: 2px; height: 4px; overflow: hidden; width: 100%;">
-          <div id="adduserPasswordStrengthBar" class="pw-strength-bar" style="width: 0%; height: 100%;"></div>
+      <div style="display: flex; gap: 6px; width: 100%;">
+        <input type="password" class="form-control" id="adduserPassword" placeholder="Password" style="flex: 1;" autocomplete="new-password">
+        <button type="button" class="btn btn-default" id="adduserGenBtn" style="padding: 6px 12px; height: 40px;" title="Generate Password"><span class="fa fa-magic"></span> Generate</button>
+      </div>
+      
+      <!-- Checklist popup -->
+      <div id="adduserPasswordChecklist" class="pw-checklist-popup" style="width: 100%; min-width: 280px;">
+        <p style="margin-top: 0; margin-bottom: 8px !important; font-size: 0.85rem; font-weight: 600; color: var(--text-main);">Password Requirements</p>
+        <ul class="pw-requirements-list">
+          <li class="req-length"><span class="fa fa-circle-o req-icon"></span> At least 10 characters</li>
+          <li class="req-upper"><span class="fa fa-circle-o req-icon"></span> At least one uppercase letter (A-Z)</li>
+          <li class="req-lower"><span class="fa fa-circle-o req-icon"></span> At least one lowercase letter (a-z)</li>
+          <li class="req-number"><span class="fa fa-circle-o req-icon"></span> At least one number (0-9)</li>
+          <li class="req-special"><span class="fa fa-circle-o req-icon"></span> At least one special character</li>
+        </ul>
+        <div id="adduserPasswordStrength" class="pw-strength-container" style="margin-top: 10px;">
+          <div class="pw-strength-bar-bg" style="background: var(--bg-app); border-radius: 2px; height: 4px; overflow: hidden; width: 100%;">
+            <div id="adduserPasswordStrengthBar" class="pw-strength-bar" style="width: 0%; height: 100%;"></div>
+          </div>
+          <small id="adduserPasswordStrengthText" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; display: block; font-weight: 600;"></small>
         </div>
-        <small id="adduserPasswordStrengthText" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; display: block;"></small>
       </div>
     </div>
     <div class="form-group" style="margin: 0; min-width: 140px;">
@@ -42,6 +57,19 @@
     </div>
     <button type="submit" class="btn btn-primary" style="min-width: 100px;">Add User</button>
   </form>
+  
+  <div id="password-generator-card" style="display: none; background: var(--bg-app); border: 1px dashed var(--primary-color); border-radius: 8px; padding: 12px; margin-top: 12px; max-width: 450px; box-shadow: var(--shadow-sm);">
+    <p style="margin-bottom: 8px !important; font-size: 0.85rem; font-weight: 600;">Password Generator</p>
+    <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
+      <input type="text" id="gen-pw-display" class="form-control" style="font-family: SFMono-Regular, Consolas, monospace; font-size: 0.95rem; flex: 1;" readonly>
+      <button type="button" class="btn btn-default btn-sm" onclick="roll_generated_password('add');" title="Generate New"><span class="fa fa-refresh"></span></button>
+      <button type="button" class="btn btn-default btn-sm" id="gen-pw-copy-btn" onclick="copy_generated_password('add');" title="Copy to Clipboard"><span class="fa fa-copy"></span> Copy</button>
+    </div>
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+      <small style="color: var(--warning); font-size: 0.75rem; font-weight: 500; line-height: 1.2; display: inline-flex; align-items: center; gap: 4px;"><span class="fa fa-warning"></span> Copy and store this password before applying.</small>
+      <button type="button" class="btn btn-primary btn-xs" onclick="use_generated_password('add');">Use Password</button>
+    </div>
+  </div>
   
   <hr style="border-top-color: var(--border-color); margin: 1.5rem 0;">
   
@@ -289,23 +317,81 @@ function users_set_password(elem) {
 
   var yourpw = "";
   if (api_credentials != null && email == api_credentials.username)
-    yourpw = "<p class='text-danger'>If you change your own password, you will be logged out of this control panel and will need to log in again.</p>";
+    yourpw = "<p class='text-danger' style='margin-top: 10px; font-size: 0.875rem;'>If you change your own password, you will be logged out of this control panel and will need to log in again.</p>";
 
   var modalContent = $("<div>" +
-    "<p>Set a new password for <b>" + escapeHtml(email) + "</b>?</p>" +
-    "<p><label for='users_set_password_pw' style='display: block; font-weight: normal'>New Password:</label>" +
-    "<input type='password' id='users_set_password_pw' style='width: 100%;'></p>" +
-    "<div id='modalPasswordStrength' class='pw-strength-container' style='display: none; margin-top: 4px; margin-bottom: 12px;'>" +
-    "  <div class='pw-strength-bar-bg' style='background: var(--bg-app); border-radius: 2px; height: 4px; overflow: hidden; width: 100%;'>" +
-    "    <div id='modalPasswordStrengthBar' class='pw-strength-bar' style='width: 0%; height: 100%;'></div>" +
+    "<p style='margin-bottom: 12px;'>Set a new password for <b>" + escapeHtml(email) + "</b>?</p>" +
+    "<div style='position: relative; margin-bottom: 12px;'>" +
+    "  <label for='users_set_password_pw' style='display: block; font-weight: normal'>New Password:</label>" +
+    "  <div style='display: flex; gap: 6px; width: 100%;'>" +
+    "    <input type='password' id='users_set_password_pw' style='flex: 1;' autocomplete='off' class='form-control'>" +
+    "    <button type='button' class='btn btn-default' id='modalGenBtn' style='padding: 6px 12px; height: 40px;' title='Generate Password'><span class='fa fa-magic'></span> Generate</button>" +
     "  </div>" +
-    "  <small id='modalPasswordStrengthText' style='font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; display: block;'></small>" +
+    "  " +
+    "  <!-- Modal Checklist popup -->" +
+    "  <div id='modalPasswordChecklist' class='pw-checklist-popup' style='width: 100%; min-width: 280px;'>" +
+    "    <p style='margin-top: 0; margin-bottom: 8px !important; font-size: 0.85rem; font-weight: 600; color: var(--text-main);'>Password Requirements</p>" +
+    "    <ul class='pw-requirements-list'>" +
+    "      <li class='req-length'><span class='fa fa-circle-o req-icon'></span> At least 10 characters</li>" +
+    "      <li class='req-upper'><span class='fa fa-circle-o req-icon'></span> At least one uppercase letter (A-Z)</li>" +
+    "      <li class='req-lower'><span class='fa fa-circle-o req-icon'></span> At least one lowercase letter (a-z)</li>" +
+    "      <li class='req-number'><span class='fa fa-circle-o req-icon'></span> At least one number (0-9)</li>" +
+    "      <li class='req-special'><span class='fa fa-circle-o req-icon'></span> At least one special character</li>" +
+    "    </ul>" +
+    "    <div id='modalPasswordStrength' class='pw-strength-container' style='margin-top: 10px;'>" +
+    "      <div class='pw-strength-bar-bg' style='background: var(--bg-app); border-radius: 2px; height: 4px; overflow: hidden; width: 100%;'>" +
+    "        <div id='modalPasswordStrengthBar' class='pw-strength-bar' style='width: 0%; height: 100%;'></div>" +
+    "      </div>" +
+    "      <small id='modalPasswordStrengthText' style='font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; display: block; font-weight: 600;'></small>" +
+    "    </div>" +
+    "  </div>" +
     "</div>" +
-    "<p><small>Passwords must be at least 10 characters with uppercase, lowercase, digit, and special character.</small>" + yourpw + "</p>" +
+    "" +
+    "<!-- Modal Password Generator Card -->" +
+    "<div id='modal-password-generator-card' style='display: none; background: var(--bg-app); border: 1px dashed var(--primary-color); border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: var(--shadow-sm);'>" +
+    "  <p style='margin-bottom: 8px !important; font-size: 0.85rem; font-weight: 600;'>Password Generator</p>" +
+    "  <div style='display: flex; gap: 8px; align-items: center; margin-bottom: 8px;'>" +
+    "    <input type='text' id='modal-gen-pw-display' class='form-control' style='font-family: SFMono-Regular, Consolas, monospace; font-size: 0.95rem; flex: 1;' readonly>" +
+    "    <button type='button' class='btn btn-default btn-sm' id='modal-roll-pw-btn' title='Generate New'><span class='fa fa-refresh'></span></button>" +
+    "    <button type='button' class='btn btn-default btn-sm' id='modal-copy-pw-btn' title='Copy to Clipboard'><span class='fa fa-copy'></span> Copy</button>" +
+    "  </div>" +
+    "  <div style='display: flex; justify-content: space-between; align-items: center; gap: 10px;'>" +
+    "    <small style='color: var(--warning); font-size: 0.75rem; font-weight: 500; line-height: 1.2; display: inline-flex; align-items: center; gap: 4px;'><span class='fa fa-warning'></span> Copy and store this password before applying.</small>" +
+    "    <button type='button' class='btn btn-primary btn-xs' id='modal-use-pw-btn'>Use Password</button>" +
+    "  </div>" +
+    "</div>" +
+    yourpw +
     "</div>");
 
   modalContent.find('#users_set_password_pw').on('input keyup', function() {
     handle_password_strength_input($(this), modalContent.find('#modalPasswordStrengthBar'), modalContent.find('#modalPasswordStrengthText'), modalContent.find('#modalPasswordStrength'));
+  });
+
+  modalContent.find('#users_set_password_pw').on('focus input', function() {
+    modalContent.find('#modalPasswordChecklist').fadeIn(200);
+  });
+  modalContent.find('#users_set_password_pw').on('blur', function() {
+    setTimeout(function() {
+      if (!modalContent.find('#users_set_password_pw').is(':focus')) {
+        modalContent.find('#modalPasswordChecklist').fadeOut(200);
+      }
+    }, 200);
+  });
+
+  modalContent.find('#modalGenBtn').on('click', function() {
+    toggle_generator_card('modal');
+  });
+
+  modalContent.find('#modal-roll-pw-btn').on('click', function() {
+    roll_generated_password('modal');
+  });
+
+  modalContent.find('#modal-copy-pw-btn').on('click', function() {
+    copy_generated_password('modal');
+  });
+
+  modalContent.find('#modal-use-pw-btn').on('click', function() {
+    use_generated_password('modal');
   });
 
   show_modal_confirm(
@@ -318,7 +404,7 @@ function users_set_password(elem) {
         "POST",
         {
           email: email,
-          password: $('#users_set_password_pw').val()
+          password: modalContent.find('#users_set_password_pw').val()
         },
         function(r) {
           // Responses are multiple lines of pre-formatted text.
@@ -420,7 +506,10 @@ function mod_priv(elem, add_remove) {
     });
 }
 
-function generate_random_password() {
+var currentGeneratedPasswordAdd = "";
+var currentGeneratedPasswordModal = "";
+
+function get_secure_random_password() {
   var ucase = "ABCDEFGHJKLMNPQRSTUVWXYZ";
   var lcase = "abcdefghijkmnopqrstuvwxyz";
   var digits = "23456789";
@@ -452,9 +541,69 @@ function generate_random_password() {
     pwArr[j] = temp;
   }
   
-  var pw = pwArr.join("");
-  show_modal_error("Random Password", "<p>Here, try this:</p> <p><code style='font-size: 1.1rem; font-family: SFMono-Regular, Consolas, \"Liberation Mono\", Menlo, monospace;'>" + pw + "</code></p>");
-  return false; // cancel click
+  return pwArr.join("");
+}
+
+function roll_generated_password(type) {
+  var pw = get_secure_random_password();
+  if (type === 'add') {
+    currentGeneratedPasswordAdd = pw;
+    $('#gen-pw-display').val(pw);
+    $('#gen-pw-copy-btn').html("<span class='fa fa-copy'></span> Copy");
+  } else {
+    currentGeneratedPasswordModal = pw;
+    $('#modal-gen-pw-display').val(pw);
+    $('#modal-copy-pw-btn').html("<span class='fa fa-copy'></span> Copy");
+  }
+}
+
+function toggle_generator_card(type) {
+  if (type === 'add') {
+    var card = $('#password-generator-card');
+    if (card.is(':visible')) {
+      roll_generated_password('add');
+    } else {
+      roll_generated_password('add');
+      card.slideDown();
+    }
+  } else {
+    var card = $('#modal-password-generator-card');
+    if (card.is(':visible')) {
+      roll_generated_password('modal');
+    } else {
+      roll_generated_password('modal');
+      card.slideDown();
+    }
+  }
+}
+
+function copy_generated_password(type) {
+  var pw = (type === 'add') ? currentGeneratedPasswordAdd : currentGeneratedPasswordModal;
+  var btn = (type === 'add') ? $('#gen-pw-copy-btn') : $('#modal-copy-pw-btn');
+  
+  navigator.clipboard.writeText(pw).then(function() {
+    btn.html("<span class='fa fa-check'></span> Copied!");
+    setTimeout(function() {
+      btn.html("<span class='fa fa-copy'></span> Copy");
+    }, 2000);
+  });
+}
+
+function use_generated_password(type) {
+  if (type === 'add') {
+    var pw = currentGeneratedPasswordAdd;
+    $('#adduserPassword').val(pw).trigger('input').trigger('keyup');
+    $('#password-generator-card').slideUp();
+  } else {
+    var pw = currentGeneratedPasswordModal;
+    $('#users_set_password_pw').val(pw).trigger('input').trigger('keyup');
+    $('#modal-password-generator-card').slideUp();
+  }
+}
+
+function generate_random_password() {
+  toggle_generator_card('add');
+  return false;
 }
 
 function get_password_strength(pw) {
@@ -467,13 +616,43 @@ function get_password_strength(pw) {
   return score;
 }
 
+function update_req_item(liEl, isMet) {
+  var icon = liEl.find('.req-icon');
+  if (isMet) {
+    liEl.addClass('met');
+    icon.removeClass('fa-circle-o').addClass('fa-check');
+  } else {
+    liEl.removeClass('met');
+    icon.removeClass('fa-check').addClass('fa-circle-o');
+  }
+}
+
 function handle_password_strength_input(inputEl, barEl, textEl, containerEl) {
   var pw = inputEl.val();
+  var isModal = inputEl.attr('id') === 'users_set_password_pw';
+  var checklistEl = isModal ? $('#modalPasswordChecklist') : $('#adduserPasswordChecklist');
+
   if (pw.length === 0) {
     containerEl.hide();
+    checklistEl.find('li').removeClass('met');
+    checklistEl.find('.req-icon').removeClass('fa-check').addClass('fa-circle-o');
     return;
   }
   containerEl.show();
+
+  // Check requirements
+  var lengthMet = pw.length >= 10;
+  var upperMet = /[A-Z]/.test(pw);
+  var lowerMet = /[a-z]/.test(pw);
+  var numberMet = /[0-9]/.test(pw);
+  var specialMet = /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?/~`]/.test(pw);
+
+  update_req_item(checklistEl.find('.req-length'), lengthMet);
+  update_req_item(checklistEl.find('.req-upper'), upperMet);
+  update_req_item(checklistEl.find('.req-lower'), lowerMet);
+  update_req_item(checklistEl.find('.req-number'), numberMet);
+  update_req_item(checklistEl.find('.req-special'), specialMet);
+
   var score = get_password_strength(pw);
   barEl.removeClass('pw-strength-weak pw-strength-fair pw-strength-good pw-strength-strong');
   if (score <= 2) {
@@ -494,6 +673,22 @@ function handle_password_strength_input(inputEl, barEl, textEl, containerEl) {
 $(function() {
   $('#adduserPassword').on('input keyup', function() {
     handle_password_strength_input($(this), $('#adduserPasswordStrengthBar'), $('#adduserPasswordStrengthText'), $('#adduserPasswordStrength'));
+  });
+
+  $('#adduserPassword').on('focus input', function() {
+    $('#adduserPasswordChecklist').fadeIn(200);
+  });
+  
+  $('#adduserPassword').on('blur', function() {
+    setTimeout(function() {
+      if (!$('#adduserPassword').is(':focus')) {
+        $('#adduserPasswordChecklist').fadeOut(200);
+      }
+    }, 200);
+  });
+
+  $('#adduserGenBtn').on('click', function() {
+    toggle_generator_card('add');
   });
 });
 </script>

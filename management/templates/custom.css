@@ -820,3 +820,66 @@ div.pre {
   to { transform: translateY(0); opacity: 1; }
 }
 
+/* Password requirements checklist popup */
+.pw-checklist-popup {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 1050;
+  display: none;
+  width: 300px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 14px 16px;
+  box-shadow: var(--shadow-lg);
+}
+
+.pw-checklist-popup::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 24px;
+  border: 6px solid transparent;
+  border-bottom-color: var(--border-color);
+}
+
+.pw-checklist-popup::after {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 24px;
+  border: 5px solid transparent;
+  border-bottom-color: var(--bg-card);
+}
+
+.pw-requirements-list {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+.pw-requirements-list li {
+  margin-bottom: 6px !important;
+  color: var(--text-muted) !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: color 0.2s ease;
+}
+
+.pw-requirements-list li.met {
+  color: var(--success) !important;
+}
+
+.pw-requirements-list li .req-icon {
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
