@@ -229,6 +229,7 @@ curl -X POST -d "email=new_user@mydomail.com" https://{{hostname}}/admin/mail/us
 
 <script>
 function show_users() {
+  init_users_panel();
   $('#user_table tbody').html("<tr><td colspan='5' class='text-muted'>Loading...</td></tr>")
   api(
     "/mail/users",
@@ -670,7 +671,11 @@ function handle_password_strength_input(inputEl, barEl, textEl, containerEl) {
   }
 }
 
-$(function() {
+var users_panel_initialized = false;
+function init_users_panel() {
+  if (users_panel_initialized) return;
+  users_panel_initialized = true;
+
   $('#adduserPassword').on('input keyup', function() {
     handle_password_strength_input($(this), $('#adduserPasswordStrengthBar'), $('#adduserPasswordStrengthText'), $('#adduserPasswordStrength'));
   });
@@ -690,5 +695,5 @@ $(function() {
   $('#adduserGenBtn').on('click', function() {
     toggle_generator_card('add');
   });
-});
+}
 </script>
