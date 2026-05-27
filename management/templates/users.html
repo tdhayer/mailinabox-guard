@@ -83,8 +83,14 @@
 </div>
 
 <div class="panel">
-  <div class="panel-heading">
-    <h3 style="margin: 0 !important; border: none !important; padding: 0 !important; font-size: 1.25rem !important;">Existing mail users</h3>
+  <div class="panel-heading" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+    <h3 style="margin: 0 !important; border: none !important; padding: 0 !important; font-size: 1.25rem !important; border-bottom: none !important;">Existing mail users</h3>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <label for="userDomainFilter" style="margin: 0 !important; font-size: 0.875rem !important; font-weight: 500 !important; color: var(--text-muted);">Filter by domain:</label>
+      <select id="userDomainFilter" class="form-control input-sm" style="width: 200px; height: 32px !important; padding: 4px 10px !important;">
+        <option value="all">All Domains</option>
+      </select>
+    </div>
   </div>
   
   <div class="table-responsive" style="border: none;">
@@ -228,6 +234,8 @@ curl -X POST -d "email=new_user@mydomail.com" https://{{hostname}}/admin/mail/us
 </div>
 
 <script>
+var cached_users_data = null;
+
 function show_users() {
   init_users_panel();
   $('#user_table tbody').html("<tr><td colspan='5' class='text-muted'>Loading...</td></tr>")
@@ -236,56 +244,90 @@ function show_users() {
     "GET",
     { format: 'json' },
     function(r) {
-      $('#user_table tbody').html("");
-      for (var i = 0; i < r.length; i++) {
-        var hdr = $("<tr><th role='heading' aria-level='4' colspan='5' style='background-color: var(--bg-app) !important; color: var(--text-main) !important; font-weight: 700; text-transform: none; border-bottom: 1px solid var(--border-color); font-size: 0.95rem; padding: 12px 16px;'></th></tr>");
-        hdr.find('th').text(r[i].domain);
-        $('#user_table tbody').append(hdr);
+      cached_users_data = r;
+      populate_domain_filter(r);
+      render_users_table();
+    });
+}
 
-        for (var k = 0; k < r[i].users.length; k++) {
-          var user = r[i].users[k];
+function populate_domain_filter(r) {
+  var filter = $('#userDomainFilter');
+  var current_val = filter.val() || 'all';
+  filter.html('<option value="all">All Domains</option>');
+  
+  for (var i = 0; i < r.length; i++) {
+    var domain = r[i].domain;
+    var opt = $('<option></option>').attr('value', domain).text(domain);
+    filter.append(opt);
+  }
+  
+  if (filter.find('option[value="' + current_val + '"]').length > 0) {
+    filter.val(current_val);
+  } else {
+    filter.val('all');
+  }
+}
 
-          var n = $("#user-template").clone();
-          var n2 = $("#user-extra-template").clone();
-          n.attr('id', '');
-          n2.attr('id', '');
-          $('#user_table tbody').append(n);
-          $('#user_table tbody').append(n2);
+function render_users_table() {
+  if (!cached_users_data) return;
+  
+  var filter_val = $('#userDomainFilter').val() || 'all';
+  $('#user_table tbody').html("");
+  
+  for (var i = 0; i < cached_users_data.length; i++) {
+    var domain_data = cached_users_data[i];
+    
+    if (filter_val !== 'all' && domain_data.domain !== filter_val) {
+      continue;
+    }
+    
+    var hdr = $("<tr><th role='heading' aria-level='4' colspan='5' style='background-color: var(--bg-app) !important; color: var(--text-main) !important; font-weight: 700; text-transform: none; border-bottom: 1px solid var(--border-color); font-size: 0.95rem; padding: 12px 16px;'></th></tr>");
+    hdr.find('th').text(domain_data.domain);
+    $('#user_table tbody').append(hdr);
 
-          n.addClass("account_" + user.status);
-          n2.addClass("account_" + user.status);
+    for (var k = 0; k < domain_data.users.length; k++) {
+      var user = domain_data.users[k];
 
-          n.attr('data-email', user.email);
-          n.attr('data-quota', user.quota);
-          n.find('.address').text(user.email);
-          n.find('.box-size').text(user.box_size);
-          if (user.box_size == '?') {
-            n.find('.box-size').attr('title', 'Mailbox size is unknown')
-          }
-          n.find('.percent').text(user.percent);
-          n.find('.quota').text((user.quota == '0') ? 'unlimited' : user.quota);
-          n2.find('.restore_info tt').text(user.mailbox);
+      var n = $("#user-template").clone();
+      var n2 = $("#user-extra-template").clone();
+      n.attr('id', '');
+      n2.attr('id', '');
+      $('#user_table tbody').append(n);
+      $('#user_table tbody').append(n2);
 
-          if (user.status == 'inactive') continue;
+      n.addClass("account_" + user.status);
+      n2.addClass("account_" + user.status);
 
-          var add_privs = ["admin"];
-
-          for (var j = 0; j < user.privileges.length; j++) {
-            var p = $("<span><b><span class='name'></span></b> (<a href='#' onclick='mod_priv(this, \"remove\"); return false;' title='Remove Privilege'>remove privilege</a>) | </span>");
-            p.find('span.name').text(user.privileges[j]);
-            n.find('.privs').append(p);
-            if (add_privs.indexOf(user.privileges[j]) >= 0)
-              add_privs.splice(add_privs.indexOf(user.privileges[j]), 1);
-          }
-
-          for (var j = 0; j < add_privs.length; j++) {
-            var p = $("<span><a href='#' onclick='mod_priv(this, \"add\"); return false;' title='Add Privilege'>make <span class='name'></span></a> | </span>");
-            p.find('span.name').text(add_privs[j]);
-            n.find('.add-privs').append(p);
-          }
-        }
+      n.attr('data-email', user.email);
+      n.attr('data-quota', user.quota);
+      n.find('.address').text(user.email);
+      n.find('.box-size').text(user.box_size);
+      if (user.box_size == '?') {
+        n.find('.box-size').attr('title', 'Mailbox size is unknown')
       }
-    })
+      n.find('.percent').text(user.percent);
+      n.find('.quota').text((user.quota == '0') ? 'unlimited' : user.quota);
+      n2.find('.restore_info tt').text(user.mailbox);
+
+      if (user.status == 'inactive') continue;
+
+      var add_privs = ["admin"];
+
+      for (var j = 0; j < user.privileges.length; j++) {
+        var p = $("<span><b><span class='name'></span></b> (<a href='#' onclick='mod_priv(this, \"remove\"); return false;' title='Remove Privilege'>remove privilege</a>) | </span>");
+        p.find('span.name').text(user.privileges[j]);
+        n.find('.privs').append(p);
+        if (add_privs.indexOf(user.privileges[j]) >= 0)
+          add_privs.splice(add_privs.indexOf(user.privileges[j]), 1);
+      }
+
+      for (var j = 0; j < add_privs.length; j++) {
+        var p = $("<span><a href='#' onclick='mod_priv(this, \"add\"); return false;' title='Add Privilege'>make <span class='name'></span></a> | </span>");
+        p.find('span.name').text(add_privs[j]);
+        n.find('.add-privs').append(p);
+      }
+    }
+  }
 }
 
 function do_add_user() {
@@ -305,7 +347,14 @@ function do_add_user() {
     function(r) {
       // Responses are multiple lines of pre-formatted text.
       show_modal_error("Add User", $("<pre/>").text(r));
-      show_users()
+      
+      // Clear inputs and collapse password aids
+      $("#adduserEmail").val("");
+      $("#adduserPassword").val("").trigger('input').trigger('keyup');
+      $("#adduserPasswordChecklist").hide();
+      $("#password-generator-card").slideUp();
+      
+      show_users();
     },
     function(r) {
       show_modal_error("Add User", r);
@@ -694,6 +743,10 @@ function init_users_panel() {
 
   $('#adduserGenBtn').on('click', function() {
     toggle_generator_card('add');
+  });
+
+  $('#userDomainFilter').on('change', function() {
+    render_users_table();
   });
 }
 </script>
