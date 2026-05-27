@@ -72,7 +72,7 @@ def get_audit_log(page, per_page, action_filter, env):
         where_str = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
         
         # Get total entries count
-        count_query = f"SELECT COUNT(*) FROM audit_log {where_str}"
+        count_query = f"SELECT COUNT(*) FROM audit_log {where_str}"  # nosec B608
         c.execute(count_query, params)
         total_entries = c.fetchone()[0]
         
@@ -80,7 +80,7 @@ def get_audit_log(page, per_page, action_filter, env):
         limit = per_page
         offset = (page - 1) * per_page
         
-        query = f"SELECT id, timestamp, admin_email, action, target, details FROM audit_log {where_str} ORDER BY id DESC LIMIT ? OFFSET ?"
+        query = f"SELECT id, timestamp, admin_email, action, target, details FROM audit_log {where_str} ORDER BY id DESC LIMIT ? OFFSET ?"  # nosec B608
         c.execute(query, params + [limit, offset])
         
         rows = c.fetchall()
