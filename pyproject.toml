@@ -75,3 +75,12 @@ ignore = [
 quote-style = "preserve"
 
 indent-style = "tab"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = [
+    "test_dashboard_apis.py",
+    "test_status_checks.py",
+    "test_mfa.py"
+]
+

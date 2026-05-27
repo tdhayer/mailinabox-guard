@@ -84,3 +84,23 @@ jobs:
       - name: Run version synchronization check
         run: python tools/version_sync_check.py
 
+  unit-tests:
+    name: Run Python Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install pytest rtyaml "email_validator>=1.0.0" flask dnspython python-dateutil expiringdict "qrcode[pil]" pyotp "webauthn>=2.7.0" "cbor2<6.0.0" "idna>=2.0.0" "cryptography>=44.0.2" psutil b2sdk boto3
+
+      - name: Run unit tests with pytest
+        run: python -m pytest
+
+
