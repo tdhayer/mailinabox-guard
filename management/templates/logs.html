@@ -1,3 +1,17 @@
+<style>
+.btn-pill {
+	border-radius: 50px !important;
+	padding: 2px 10px !important;
+	font-weight: 500 !important;
+	transition: all 0.15s ease-in-out !important;
+	font-size: 0.85em !important;
+}
+.btn-pill:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+}
+</style>
+
 <h2>Logs &amp; Search</h2>
 <p class="text-muted">Inspect and query real-time system logs directly from the server. Enter a query to filter output.</p>
 
@@ -49,9 +63,31 @@
 				<div class="col-md-2">
 					<div class="form-group">
 						<label>&nbsp;</label>
-						<button type="button" class="btn btn-default btn-block" onclick="$('#log-filter-query').val(''); fetch_system_logs();">
+						<button type="button" class="btn btn-default btn-block" onclick="clear_log_filters();">
 							Clear
 						</button>
+					</div>
+				</div>
+			</div>
+			
+			<div class="row" style="margin-top: 0.5rem; margin-bottom: 0.5rem;">
+				<div class="col-md-12">
+					<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 15px; margin-top: 5px;">
+						<span style="font-weight: bold; font-size: 0.9em; color: #666;">Search Options:</span>
+						<label class="checkbox-inline" style="font-weight: 500; font-size: 0.9em; user-select: none; margin-top: 0; display: inline-flex; align-items: center; gap: 5px;">
+							<input type="checkbox" id="log-use-regex" onchange="fetch_system_logs();" style="margin-top: 0;"> Use Regex (e.g. a|b)
+						</label>
+						<label class="checkbox-inline" style="font-weight: 500; font-size: 0.9em; user-select: none; margin-top: 0; display: inline-flex; align-items: center; gap: 5px;">
+							<input type="checkbox" id="log-case-sensitive" onchange="fetch_system_logs();" style="margin-top: 0;"> Case Sensitive
+						</label>
+						
+						<span style="border-left: 1px solid #ddd; height: 16px; margin: 0 5px; display: inline-block; vertical-align: middle;"></span>
+						
+						<span style="font-weight: bold; font-size: 0.9em; color: #666;">Quick Presets:</span>
+						<button type="button" class="btn btn-xs btn-info btn-pill" onclick="apply_preset('mail', 'reject|bounced|550|554', true);">Mail Rejections</button>
+						<button type="button" class="btn btn-xs btn-info btn-pill" onclick="apply_preset('mail', 'postgrey', false);">Greylisting</button>
+						<button type="button" class="btn btn-xs btn-info btn-pill" onclick="apply_preset('mail', 'imap-login', false);">IMAP Logins</button>
+						<button type="button" class="btn btn-xs btn-info btn-pill" onclick="apply_preset('fail2ban', 'ban|unban', true);">Fail2ban Actions</button>
 					</div>
 				</div>
 			</div>
@@ -76,14 +112,37 @@ function show_logs() {
 	fetch_system_logs();
 }
 
+function apply_preset(logType, query, isRegex) {
+	$('#log-select-type').val(logType);
+	$('#log-filter-query').val(query);
+	$('#log-use-regex').prop('checked', isRegex);
+	$('#log-case-sensitive').prop('checked', false);
+	fetch_system_logs();
+}
+
+function clear_log_filters() {
+	$('#log-filter-query').val('');
+	$('#log-use-regex').prop('checked', false);
+	$('#log-case-sensitive').prop('checked', false);
+	fetch_system_logs();
+}
+
 function fetch_system_logs() {
 	var logType = $('#log-select-type').val();
 	var lines = $('#log-select-lines').val();
 	var query = $('#log-filter-query').val().trim();
+	var useRegex = $('#log-use-regex').is(':checked');
+	var caseSensitive = $('#log-case-sensitive').is(':checked');
 
 	$('#log-display-console').html('<div class="text-center text-muted" style="margin-top: 100px;"><span class="fa fa-spinner fa-pulse fa-2x"></span><br><br>Retrieving logs...</div>');
 
-	api("/system/logs?log_type=" + logType + "&lines=" + lines + "&filter=" + encodeURIComponent(query), "GET", {}, function(data) {
+	var url = "/system/logs?log_type=" + logType + 
+	          "&lines=" + lines + 
+	          "&filter=" + encodeURIComponent(query) + 
+	          "&use_regex=" + useRegex + 
+	          "&case_sensitive=" + caseSensitive;
+
+	api(url, "GET", {}, function(data) {
 		var consoleDiv = $('#log-display-console');
 		consoleDiv.empty();
 

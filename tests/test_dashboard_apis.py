@@ -127,6 +127,36 @@ class TestDashboardAPIs(unittest.TestCase):
         self.assertEqual(data['spam_7days']['received'], 5)
         self.assertEqual(data['spam_7days']['blocked'], 1)
 
+    @patch('daemon.auth_service.authenticate')
+    @patch('daemon.utils.shell')
+    @patch('os.path.exists')
+    def test_get_logs_tail(self, mock_exists, mock_shell, mock_authenticate):
+        mock_authenticate.return_value = ('admin@example.com', ['admin'])
+        mock_exists.return_value = True
+        mock_shell.return_value = (0, "line 1\nline 2\nline 3\n")
+        
+        response = self.app.get('/system/logs?log_type=mail&lines=100')
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.data.decode('utf-8'))
+        self.assertEqual(data['log_type'], 'mail')
+        self.assertEqual(len(data['lines']), 3)
+        mock_shell.assert_called_with('check_output', ['tail', '-n', '100', '/var/log/mail.log'], trap=True)
+
+    @patch('daemon.auth_service.authenticate')
+    @patch('daemon.utils.shell')
+    @patch('os.path.exists')
+    def test_get_logs_filter_regex(self, mock_exists, mock_shell, mock_authenticate):
+        mock_authenticate.return_value = ('admin@example.com', ['admin'])
+        mock_exists.return_value = True
+        mock_shell.return_value = (0, "matched line 1\nmatched line 2\n")
+        
+        response = self.app.get('/system/logs?log_type=mail&lines=100&filter=matched&use_regex=true&case_sensitive=true')
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.data.decode('utf-8'))
+        self.assertEqual(data['log_type'], 'mail')
+        self.assertEqual(len(data['lines']), 2)
+        mock_shell.assert_called_with('check_output', ['grep', '-E', 'matched', '/var/log/mail.log'], trap=True)
+
 if __name__ == '__main__':
     unittest.main()
 

@@ -1183,6 +1183,8 @@ def get_logs_api():
 	log_type = request.args.get('log_type', 'mail')
 	lines_limit = request.args.get('lines', '500')
 	filter_query = request.args.get('filter', '').strip()
+	use_regex = request.args.get('use_regex', 'false').lower() == 'true'
+	case_sensitive = request.args.get('case_sensitive', 'false').lower() == 'true'
 	
 	log_paths = {
 		'mail': '/var/log/mail.log',
@@ -1206,12 +1208,34 @@ def get_logs_api():
 		lines_limit = 500
 		
 	try:
-		code, output = utils.shell("check_output", ["tail", "-n", str(lines_limit), path], trap=True)
-		lines = output.splitlines()
-		
 		if filter_query:
-			q = filter_query.lower()
-			lines = [line for line in lines if q in line.lower()]
+			# Build grep command for efficient direct search on the entire log file
+			cmd = ["grep"]
+			if use_regex:
+				cmd.append("-E")
+			else:
+				cmd.append("-F")
+			if not case_sensitive:
+				cmd.append("-i")
+			
+			cmd.extend([filter_query, path])
+			code, output = utils.shell("check_output", cmd, trap=True)
+			
+			# Grep exits with code 1 if no matches are found. This is normal, not an error.
+			if code == 1:
+				lines = []
+			elif code != 0:
+				raise Exception(f"Grep command failed with code {code}: {output}")
+			else:
+				lines = output.splitlines()
+				if len(lines) > lines_limit:
+					lines = lines[-lines_limit:]
+		else:
+			# Standard behavior: retrieve the tail of the log file
+			code, output = utils.shell("check_output", ["tail", "-n", str(lines_limit), path], trap=True)
+			if code != 0:
+				raise Exception(f"Tail command failed with code {code}: {output}")
+			lines = output.splitlines()
 			
 		return json_response({
 			"log_type": log_type,
