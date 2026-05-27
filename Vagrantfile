@@ -11,6 +11,12 @@ Vagrant.configure("2") do |config|
   config.vm.hostname = "mailinabox.lan"
   config.vm.network "private_network", ip: "192.168.56.4"
 
+  # Provider resources: increase memory and CPU for reliable VM provisioning
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = "2048"
+    vb.cpus = 2
+  end
+
   config.vm.provision :shell, :inline => <<-SH
     # Set environment variables so that the setup script does
     # not ask any questions during provisioning. We'll let the
@@ -19,10 +25,10 @@ Vagrant.configure("2") do |config|
     export PUBLIC_IP=auto
     export PUBLIC_IPV6=auto
     export PRIMARY_HOSTNAME=auto
-    #export SKIP_NETWORK_CHECKS=1
+    export SKIP_NETWORK_CHECKS=1
 
     # Start the setup script.
     cd /vagrant
     setup/start.sh
-SH
+  SH
 end
