@@ -283,6 +283,33 @@ class TestDashboardAPIs(unittest.TestCase):
         # Cleanup sessions
         daemon.auth_service.sessions.clear()
 
+    @patch('daemon.auth_service.authenticate')
+    def test_idle_session_status(self, mock_authenticate):
+        mock_authenticate.return_value = ('admin@example.com', ['admin'])
+        
+        import time
+        daemon.auth_service.sessions['dummy_session_token'] = {
+            'email': 'admin@example.com',
+            'password_token': 'dummy',
+            'type': 'login',
+            'last_activity': time.time() - 300  # 5 minutes ago
+        }
+        
+        import base64
+        credentials = base64.b64encode(b"admin@example.com:dummy_session_token").decode('utf-8')
+        headers = {
+            'Authorization': f'Basic {credentials}'
+        }
+        
+        response = self.app.get('/session/idle-status', headers=headers)
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.data.decode('utf-8'))
+        self.assertEqual(data['status'], 'ok')
+        self.assertTrue(1490 <= data['remaining'] <= 1500)
+        
+        # Cleanup sessions
+        daemon.auth_service.sessions.clear()
+
 if __name__ == '__main__':
     unittest.main()
 

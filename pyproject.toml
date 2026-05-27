@@ -82,6 +82,9 @@ python_files = [
     "test_dashboard_apis.py",
     "test_status_checks.py",
     "test_mfa.py",
-    "test_dmarc_alerts.py"
+    "test_dmarc_alerts.py",
+    "test_password_policy.py",
+    "test_audit.py"
 ]
+
 

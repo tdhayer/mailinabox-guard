@@ -707,13 +707,27 @@ def kick(env, mail_result=None):
 	return "".join(s for s in results if s != "")
 
 def validate_password(pw):
+	import re
 	# validate password
 	if pw.strip() == "":
 		msg = "No password provided."
 		raise ValueError(msg)
-	if len(pw) < 8:
-		msg = "Passwords must be at least eight characters."
+	if len(pw) < 10:
+		msg = "Passwords must be at least 10 characters."
 		raise ValueError(msg)
+	if not re.search(r'[A-Z]', pw):
+		msg = "Password must contain at least one uppercase letter."
+		raise ValueError(msg)
+	if not re.search(r'[a-z]', pw):
+		msg = "Password must contain at least one lowercase letter."
+		raise ValueError(msg)
+	if not re.search(r'[0-9]', pw):
+		msg = "Password must contain at least one digit."
+		raise ValueError(msg)
+	if not re.search(r'[!@#$%^&*()_+\-=\[\]{}|;:,.<>?/~`]', pw):
+		msg = "Password must contain at least one special character."
+		raise ValueError(msg)
+
 
 if __name__ == "__main__":
 	import sys

@@ -785,3 +785,38 @@ div.pre {
   font-size: 0.85rem;
   color: var(--text-muted);
 }
+
+/* Password Strength Meter */
+.pw-strength-bar { height: 4px; border-radius: 2px; transition: width 0.3s ease, background-color 0.3s ease; }
+.pw-strength-weak { background-color: var(--error) !important; width: 25% !important; }
+.pw-strength-fair { background-color: var(--warning) !important; width: 50% !important; }
+.pw-strength-good { background-color: #22c55e !important; width: 75% !important; }
+.pw-strength-strong { background-color: var(--success) !important; width: 100% !important; }
+
+/* Idle Session Timeout Toast */
+.session-timeout-toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 10000;
+  background: var(--bg-card);
+  border: 1px solid var(--warning);
+  border-radius: 12px;
+  padding: 16px 20px;
+  box-shadow: var(--shadow-lg);
+  animation: slideUp 0.3s ease;
+  max-width: 320px;
+}
+.session-timeout-toast p {
+  margin-bottom: 12px !important;
+  font-size: 0.95rem !important;
+}
+.session-timeout-toast button {
+  font-size: 0.85rem !important;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+

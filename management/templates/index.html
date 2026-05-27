@@ -195,6 +195,122 @@
         <script src="/admin/assets/chart.min.js"></script>
 
         <script>
+function escapeHtml(text) {
+  if (text === null || text === undefined) return '';
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+var idle_check_interval = null;
+var idle_toast_countdown_interval = null;
+
+function start_idle_monitor() {
+  if (idle_check_interval) return;
+  
+  if ($('#session-timeout-toast').length === 0) {
+    $('body').append(
+      '<div id="session-timeout-toast" class="session-timeout-toast" style="display: none;">' +
+      '  <p id="session-timeout-text"></p>' +
+      '  <div style="display: flex; gap: 8px; justify-content: flex-end;">' +
+      '    <button class="btn btn-primary btn-xs" onclick="keep_session_alive();">Stay Logged In</button>' +
+      '  </div>' +
+      '</div>'
+    );
+  }
+
+  idle_check_interval = setInterval(function() {
+    if (api_credentials == null) {
+      stop_idle_monitor();
+      return;
+    }
+    
+    api("/session/idle-status", "GET", {}, function(r) {
+      if (r.status === "ok") {
+        var remaining = r.remaining;
+        if (remaining <= 0) {
+          handle_idle_logout();
+          return;
+        }
+        
+        if (remaining <= 300) {
+          show_idle_warning(remaining);
+        } else {
+          hide_idle_warning();
+        }
+      }
+    }, function(err) {
+      if (err && err.status === 403) {
+        handle_idle_logout();
+      }
+    });
+  }, 30000);
+}
+
+function stop_idle_monitor() {
+  if (idle_check_interval) {
+    clearInterval(idle_check_interval);
+    idle_check_interval = null;
+  }
+  if (idle_toast_countdown_interval) {
+    clearInterval(idle_toast_countdown_interval);
+    idle_toast_countdown_interval = null;
+  }
+  hide_idle_warning();
+}
+
+function show_idle_warning(seconds) {
+  var toast = $('#session-timeout-toast');
+  toast.show();
+  
+  if (idle_toast_countdown_interval) clearInterval(idle_toast_countdown_interval);
+  
+  var current_seconds = seconds;
+  function update_text() {
+    var min = Math.floor(current_seconds / 60);
+    var sec = current_seconds % 60;
+    if (sec < 10) sec = "0" + sec;
+    $('#session-timeout-text').html('Session expires in <strong>' + min + ':' + sec + '</strong> due to inactivity.');
+  }
+  
+  update_text();
+  idle_toast_countdown_interval = setInterval(function() {
+    current_seconds--;
+    if (current_seconds <= 0) {
+      clearInterval(idle_toast_countdown_interval);
+      handle_idle_logout();
+      return;
+    }
+    update_text();
+  }, 1000);
+}
+
+function hide_idle_warning() {
+  $('#session-timeout-toast').hide();
+  if (idle_toast_countdown_interval) {
+    clearInterval(idle_toast_countdown_interval);
+    idle_toast_countdown_interval = null;
+  }
+}
+
+function keep_session_alive() {
+  api("/session/idle-status", "GET", {}, function(r) {
+    hide_idle_warning();
+  });
+}
+
+function handle_idle_logout() {
+  stop_idle_monitor();
+  if (typeof localStorage != 'undefined') {
+    localStorage.removeItem("miab-cp-credentials");
+  }
+  do_logout();
+  show_modal_error("Session Expired", "You have been logged out due to inactivity.");
+}
+
 var global_modal_state = null;
 var global_modal_funcs = null;
 
@@ -398,6 +514,12 @@ function show_panel(panelid) {
 
   current_panel = panelid;
   switch_back_to_panel = null;
+
+  if (panelid === 'login') {
+    stop_idle_monitor();
+  } else if (api_credentials != null) {
+    start_idle_monitor();
+  }
 }
 
 window.onhashchange = function() {

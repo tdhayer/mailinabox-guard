@@ -20,9 +20,15 @@
       <label class="sr-only" for="adduserEmail">Email address</label>
       <input type="email" class="form-control" id="adduserEmail" placeholder="Email Address" style="width: 100%;">
     </div>
-    <div class="form-group" style="margin: 0; flex: 1; min-width: 180px;">
+    <div class="form-group" style="margin: 0; flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 4px;">
       <label class="sr-only" for="adduserPassword">Password</label>
       <input type="password" class="form-control" id="adduserPassword" placeholder="Password" style="width: 100%;">
+      <div id="adduserPasswordStrength" class="pw-strength-container" style="display: none; margin-top: 4px;">
+        <div class="pw-strength-bar-bg" style="background: var(--bg-app); border-radius: 2px; height: 4px; overflow: hidden; width: 100%;">
+          <div id="adduserPasswordStrengthBar" class="pw-strength-bar" style="width: 0%; height: 100%;"></div>
+        </div>
+        <small id="adduserPasswordStrengthText" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; display: block;"></small>
+      </div>
     </div>
     <div class="form-group" style="margin: 0; min-width: 140px;">
       <select class="form-control" id="adduserPrivs" style="width: 100%;">
@@ -40,7 +46,7 @@
   <hr style="border-top-color: var(--border-color); margin: 1.5rem 0;">
   
   <ul style="padding-left: 1.25rem; font-size: 0.875rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 0;">
-    <li>Passwords must be at least eight characters consisting of English letters and numbers only. For best results, <a href="#" onclick="return generate_random_password()">generate a random password</a>.</li>
+    <li>Passwords must be at least 10 characters consisting of uppercase and lowercase letters, numbers, and special characters. For best results, <a href="#" onclick="return generate_random_password()">generate a random password</a>.</li>
     <li>Use <a href="#aliases">aliases</a> to create email addresses that forward to existing accounts.</li>
     <li>Administrators get access to this control panel.</li>
     <li>User accounts cannot contain any international (non-ASCII) characters, but <a href="#aliases">aliases</a> can.</li>
@@ -285,9 +291,26 @@ function users_set_password(elem) {
   if (api_credentials != null && email == api_credentials.username)
     yourpw = "<p class='text-danger'>If you change your own password, you will be logged out of this control panel and will need to log in again.</p>";
 
+  var modalContent = $("<div>" +
+    "<p>Set a new password for <b>" + escapeHtml(email) + "</b>?</p>" +
+    "<p><label for='users_set_password_pw' style='display: block; font-weight: normal'>New Password:</label>" +
+    "<input type='password' id='users_set_password_pw' style='width: 100%;'></p>" +
+    "<div id='modalPasswordStrength' class='pw-strength-container' style='display: none; margin-top: 4px; margin-bottom: 12px;'>" +
+    "  <div class='pw-strength-bar-bg' style='background: var(--bg-app); border-radius: 2px; height: 4px; overflow: hidden; width: 100%;'>" +
+    "    <div id='modalPasswordStrengthBar' class='pw-strength-bar' style='width: 0%; height: 100%;'></div>" +
+    "  </div>" +
+    "  <small id='modalPasswordStrengthText' style='font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; display: block;'></small>" +
+    "</div>" +
+    "<p><small>Passwords must be at least 10 characters with uppercase, lowercase, digit, and special character.</small>" + yourpw + "</p>" +
+    "</div>");
+
+  modalContent.find('#users_set_password_pw').on('input keyup', function() {
+    handle_password_strength_input($(this), modalContent.find('#modalPasswordStrengthBar'), modalContent.find('#modalPasswordStrengthText'), modalContent.find('#modalPasswordStrength'));
+  });
+
   show_modal_confirm(
     "Set Password",
-    $("<p>Set a new password for <b>" + email + "</b>?</p> <p><label for='users_set_password_pw' style='display: block; font-weight: normal'>New Password:</label><input type='password' id='users_set_password_pw'></p><p><small>Passwords must be at least eight characters and may not contain spaces.</small>" + yourpw + "</p>"),
+    modalContent,
     "Set Password",
     function() {
       api(
@@ -313,10 +336,10 @@ function users_set_quota(elem) {
 
     show_modal_confirm(
         "Set Quota",
-        $("<p>Set quota for <b>" + email + "</b>?</p>" +
+        $("<p>Set quota for <b>" + escapeHtml(email) + "</b>?</p>" +
             "<p>" +
             "<label for='users_set_quota' style='display: block; font-weight: normal'>Quota:</label>" +
-            "<input type='text' id='users_set_quota' value='" + quota + "'></p>" +
+            "<input type='text' id='users_set_quota' value='" + escapeHtml(quota) + "'></p>" +
             "<p><small>Quotas may not contain any spaces or commas.  Suffixes of G (gigabytes) and M (megabytes) are allowed.</small></p>" +
             "<p><small>For unlimited storage enter 0 (zero)</small></p>"),
         "Set Quota",
@@ -348,7 +371,7 @@ function users_remove(elem) {
 
   show_modal_confirm(
     "Archive User",
-    $("<p>Are you sure you want to archive <b>" + email + "</b>?</p> <p>The user's mailboxes will not be deleted (you can do that later), but the user will no longer be able to log into any services on this machine.</p>"),
+    $("<p>Are you sure you want to archive <b>" + escapeHtml(email) + "</b>?</p> <p>The user's mailboxes will not be deleted (you can do that later), but the user will no longer be able to log into any services on this machine.</p>"),
     "Archive",
     function() {
       api(
@@ -381,7 +404,7 @@ function mod_priv(elem, add_remove) {
   var add_remove1 = add_remove.charAt(0).toUpperCase() + add_remove.substring(1);
   show_modal_confirm(
     "Modify Privileges",
-    $("<p>Are you sure you want to " + add_remove + " the " + priv + " privilege for <b>" + email + "</b>?</p>"),
+    $("<p>Are you sure you want to " + add_remove + " the " + escapeHtml(priv) + " privilege for <b>" + escapeHtml(email) + "</b>?</p>"),
     add_remove1,
     function() {
       api(
@@ -398,11 +421,79 @@ function mod_priv(elem, add_remove) {
 }
 
 function generate_random_password() {
-  var pw = "";
-  var charset = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"; // confusable characters skipped
-  for (var i = 0; i < 12; i++)
-    pw += charset.charAt(Math.floor(Math.random() * charset.length));
+  var ucase = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  var lcase = "abcdefghijkmnopqrstuvwxyz";
+  var digits = "23456789";
+  var special = "!@#$%^&*";
+  var all = ucase + lcase + digits + special;
+  
+  var array = new Uint32Array(16);
+  crypto.getRandomValues(array);
+  
+  // Guarantee at least one of each category
+  var pwArr = [
+    ucase.charAt(array[0] % ucase.length),
+    lcase.charAt(array[1] % lcase.length),
+    digits.charAt(array[2] % digits.length),
+    special.charAt(array[3] % special.length)
+  ];
+  
+  for (var i = 4; i < 16; i++) {
+    pwArr.push(all.charAt(array[i] % all.length));
+  }
+  
+  // Shuffle secure array using Fisher-Yates
+  var shuffleArray = new Uint32Array(16);
+  crypto.getRandomValues(shuffleArray);
+  for (var i = pwArr.length - 1; i > 0; i--) {
+    var j = shuffleArray[i] % (i + 1);
+    var temp = pwArr[i];
+    pwArr[i] = pwArr[j];
+    pwArr[j] = temp;
+  }
+  
+  var pw = pwArr.join("");
   show_modal_error("Random Password", "<p>Here, try this:</p> <p><code style='font-size: 1.1rem; font-family: SFMono-Regular, Consolas, \"Liberation Mono\", Menlo, monospace;'>" + pw + "</code></p>");
   return false; // cancel click
 }
+
+function get_password_strength(pw) {
+  var score = 0;
+  if (pw.length >= 10) score += 1;
+  if (/[A-Z]/.test(pw)) score += 1;
+  if (/[a-z]/.test(pw)) score += 1;
+  if (/[0-9]/.test(pw)) score += 1;
+  if (/[!@#$%^&*()_+\-=\[\]{}|;:,.<>?/~`]/.test(pw)) score += 1;
+  return score;
+}
+
+function handle_password_strength_input(inputEl, barEl, textEl, containerEl) {
+  var pw = inputEl.val();
+  if (pw.length === 0) {
+    containerEl.hide();
+    return;
+  }
+  containerEl.show();
+  var score = get_password_strength(pw);
+  barEl.removeClass('pw-strength-weak pw-strength-fair pw-strength-good pw-strength-strong');
+  if (score <= 2) {
+    barEl.addClass('pw-strength-weak');
+    textEl.text('Weak (missing requirements)').css('color', 'var(--error)');
+  } else if (score === 3) {
+    barEl.addClass('pw-strength-fair');
+    textEl.text('Fair (missing requirements)').css('color', 'var(--warning)');
+  } else if (score === 4) {
+    barEl.addClass('pw-strength-good');
+    textEl.text('Good (missing requirements)').css('color', '#22c55e');
+  } else {
+    barEl.addClass('pw-strength-strong');
+    textEl.text('Strong (meets requirements)').css('color', 'var(--success)');
+  }
+}
+
+$(function() {
+  $('#adduserPassword').on('input keyup', function() {
+    handle_password_strength_input($(this), $('#adduserPasswordStrengthBar'), $('#adduserPasswordStrengthText'), $('#adduserPasswordStrength'));
+  });
+});
 </script>

@@ -684,9 +684,9 @@ function loadActiveConnections() {
 				var email = s.email || 'System / API Key';
 				var type = s.type || 'unknown';
 				var row = $('<tr></tr>');
-				row.append('<td><strong>' + email + '</strong></td>');
-				row.append('<td><span class="badge conn-badge-web">' + type + '</span></td>');
-				row.append('<td><code>' + s.token_masked + '</code></td>');
+				row.append('<td><strong>' + escapeHtml(email) + '</strong></td>');
+				row.append('<td><span class="badge conn-badge-web">' + escapeHtml(type) + '</span></td>');
+				row.append('<td><code>' + escapeHtml(s.token_masked) + '</code></td>');
 				webTbody.append(row);
 			});
 		}
@@ -700,7 +700,7 @@ function loadActiveConnections() {
 			$.each(data.dovecot_connections, function(idx, c) {
 				var row = $('<tr></tr>');
 				if (c.raw) {
-					row.append('<td colspan="4"><code>' + c.raw + '</code></td>');
+					row.append('<td colspan="4"><code>' + escapeHtml(c.raw) + '</code></td>');
 				} else {
 					var user = c.username || 'unknown';
 					var ip = c.ip || c.rip || '--';
@@ -710,10 +710,10 @@ function loadActiveConnections() {
 					if (c.port) details.push('Port: ' + c.port);
 					if (c.pid) details.push('PID: ' + c.pid);
 					
-					row.append('<td><strong>' + user + '</strong></td>');
-					row.append('<td>' + ip + '</td>');
-					row.append('<td><span class="badge conn-badge-dovecot">' + svc + '</span></td>');
-					row.append('<td><small class="text-muted">' + details.join(', ') + '</small></td>');
+					row.append('<td><strong>' + escapeHtml(user) + '</strong></td>');
+					row.append('<td>' + escapeHtml(ip) + '</td>');
+					row.append('<td><span class="badge conn-badge-dovecot">' + escapeHtml(svc) + '</span></td>');
+					row.append('<td><small class="text-muted">' + escapeHtml(details.join(', ')) + '</small></td>');
 				}
 				dovTbody.append(row);
 			});

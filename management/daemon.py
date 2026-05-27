@@ -17,7 +17,7 @@ from functools import wraps
 
 from flask import Flask, request, render_template, Response, send_from_directory, make_response
 
-import auth, utils
+import auth, utils, audit
 from mailconfig import get_mail_users, get_mail_users_ex, get_admins, add_mail_user, set_mail_password, remove_mail_user
 from mailconfig import get_mail_user_privileges, add_remove_mail_user_privilege
 from mailconfig import get_mail_aliases, get_mail_aliases_ex, get_mail_domains, add_mail_alias, remove_mail_alias
@@ -204,6 +204,48 @@ def logout():
 	finally:
 		return json_response({ "status": "ok" })
 
+@app.route('/session/idle-status')
+@authorized_personnel_only
+def session_idle_status():
+	import time
+	session_key = None
+	username = None
+	if request.authorization:
+		username = request.authorization.username
+		session_key = request.authorization.password
+	else:
+		auth_header = request.headers.get('Authorization', '')
+		if " " in auth_header:
+			scheme, credentials = auth_header.split(maxsplit=1)
+			if scheme == 'Basic':
+				try:
+					import base64
+					credentials = base64.b64decode(credentials.encode('ascii')).decode('ascii')
+					if ":" in credentials:
+						username, session_key = credentials.split(':', maxsplit=1)
+				except Exception:
+					pass
+
+	if username == auth_service.key:
+		return json_response({
+			"status": "ok",
+			"remaining": 999999
+		})
+
+	if session_key and session_key in auth_service.sessions:
+		session = auth_service.sessions[session_key]
+		elapsed = time.time() - session.get("last_activity", 0)
+		remaining = max(0, 1800 - int(elapsed))
+		return json_response({
+			"status": "ok",
+			"remaining": remaining
+		})
+
+	return json_response({
+		"status": "error",
+		"reason": "No active session found."
+	}, status=400)
+
 # MAIL
 
 @app.route('/mail/users')
@@ -218,7 +260,10 @@ def mail_users():
 def mail_users_add():
 	quota = request.form.get('quota', '0')
 	try:
-		return add_mail_user(request.form.get('email', ''), request.form.get('password', ''), request.form.get('privileges', ''), quota, env)
+		res = add_mail_user(request.form.get('email', ''), request.form.get('password', ''), request.form.get('privileges', ''), quota, env)
+		if not isinstance(res, tuple):
+			audit.log_admin_action(request.user_email, "user_add", request.form.get('email', ''), f"privileges: {request.form.get('privileges', '')}, quota: {quota}", env)
+		return res
 	except ValueError as e:
 		return (str(e), 400)
 
@@ -240,7 +285,9 @@ def get_mail_users_quota():
 @authorized_personnel_only
 def mail_users_quota():
 	try:
-		return set_mail_quota(request.form.get('email', ''), request.form.get('quota'), env)
+		res = set_mail_quota(request.form.get('email', ''), request.form.get('quota'), env)
+		audit.log_admin_action(request.user_email, "user_quota_change", request.form.get('email', ''), f"quota: {request.form.get('quota')}", env)
+		return res
 	except ValueError as e:
 		return (str(e), 400)
 
@@ -248,14 +295,19 @@ def mail_users_quota():
 @authorized_personnel_only
 def mail_users_password():
 	try:
-		return set_mail_password(request.form.get('email', ''), request.form.get('password', ''), env)
+		res = set_mail_password(request.form.get('email', ''), request.form.get('password', ''), env)
+		audit.log_admin_action(request.user_email, "user_password_change", request.form.get('email', ''), None, env)
+		return res
 	except ValueError as e:
 		return (str(e), 400)
 
 @app.route('/mail/users/remove', methods=['POST'])
 @authorized_personnel_only
 def mail_users_remove():
-	return remove_mail_user(request.form.get('email', ''), env)
+	res = remove_mail_user(request.form.get('email', ''), env)
+	if not isinstance(res, tuple):
+		audit.log_admin_action(request.user_email, "user_remove", request.form.get('email', ''), None, env)
+	return res
 
 
 @app.route('/mail/users/privileges')
@@ -268,12 +320,18 @@ def mail_user_privs():
 @app.route('/mail/users/privileges/add', methods=['POST'])
 @authorized_personnel_only
 def mail_user_privs_add():
-	return add_remove_mail_user_privilege(request.form.get('email', ''), request.form.get('privilege', ''), "add", env)
+	res = add_remove_mail_user_privilege(request.form.get('email', ''), request.form.get('privilege', ''), "add", env)
+	if not isinstance(res, tuple):
+		audit.log_admin_action(request.user_email, "user_privilege_add", request.form.get('email', ''), request.form.get('privilege', ''), env)
+	return res
 
 @app.route('/mail/users/privileges/remove', methods=['POST'])
 @authorized_personnel_only
 def mail_user_privs_remove():
-	return add_remove_mail_user_privilege(request.form.get('email', ''), request.form.get('privilege', ''), "remove", env)
+	res = add_remove_mail_user_privilege(request.form.get('email', ''), request.form.get('privilege', ''), "remove", env)
+	if not isinstance(res, tuple):
+		audit.log_admin_action(request.user_email, "user_privilege_remove", request.form.get('email', ''), request.form.get('privilege', ''), env)
+	return res
 
 
 @app.route('/mail/aliases')
@@ -286,18 +344,24 @@ def mail_aliases():
 @app.route('/mail/aliases/add', methods=['POST'])
 @authorized_personnel_only
 def mail_aliases_add():
-	return add_mail_alias(
+	res = add_mail_alias(
 		request.form.get('address', ''),
 		request.form.get('forwards_to', ''),
 		request.form.get('permitted_senders', ''),
 		env,
 		update_if_exists=(request.form.get('update_if_exists', '') == '1')
 		)
+	if not isinstance(res, tuple):
+		audit.log_admin_action(request.user_email, "alias_add", request.form.get('address', ''), f"forwards_to: {request.form.get('forwards_to', '')}, permitted_senders: {request.form.get('permitted_senders', '')}", env)
+	return res
 
 @app.route('/mail/aliases/remove', methods=['POST'])
 @authorized_personnel_only
 def mail_aliases_remove():
-	return remove_mail_alias(request.form.get('address', ''), env)
+	res = remove_mail_alias(request.form.get('address', ''), env)
+	if not isinstance(res, tuple):
+		audit.log_admin_action(request.user_email, "alias_remove", request.form.get('address', ''), None, env)
+	return res
 
 @app.route('/mail/domains')
 @authorized_personnel_only
@@ -315,7 +379,7 @@ def spam_get_settings():
 @authorized_personnel_only
 def spam_set_settings():
 	try:
-		return set_spam_config(env,
+		res = set_spam_config(env,
 			threshold=request.form.get('spamassassin_threshold'),
 			greylisting_enabled=request.form.get('greylisting_enabled'),
 			greylisting_delay=request.form.get('greylisting_delay'),
@@ -324,6 +388,9 @@ def spam_set_settings():
 			spamhaus_dbl=request.form.get('spamhaus_dbl_enabled'),
 			spamhaus_zrd=request.form.get('spamhaus_zrd_enabled'),
 		)
+		details = f"threshold: {request.form.get('spamassassin_threshold')}, greylisting_enabled: {request.form.get('greylisting_enabled')}, greylisting_delay: {request.form.get('greylisting_delay')}"
+		audit.log_admin_action(request.user_email, "spam_settings_change", None, details, env)
+		return res
 	except ValueError as e:
 		return (str(e), 400)
 
@@ -336,7 +403,9 @@ def spam_get_lists():
 @authorized_personnel_only
 def spam_sa_whitelist_add():
 	try:
-		return add_spamassassin_whitelist(request.form.get('entry', ''), env)
+		res = add_spamassassin_whitelist(request.form.get('entry', ''), env)
+		audit.log_admin_action(request.user_email, "spam_whitelist_add", request.form.get('entry', ''), None, env)
+		return res
 	except ValueError as e:
 		return (str(e), 400)
 
@@ -344,7 +413,9 @@ def spam_sa_whitelist_add():
 @authorized_personnel_only
 def spam_sa_whitelist_remove():
 	try:
-		return remove_spamassassin_whitelist(request.form.get('entry', ''), env)
+		res = remove_spamassassin_whitelist(request.form.get('entry', ''), env)
+		audit.log_admin_action(request.user_email, "spam_whitelist_remove", request.form.get('entry', ''), None, env)
+		return res
 	except ValueError as e:
 		return (str(e), 400)
 
@@ -352,7 +423,9 @@ def spam_sa_whitelist_remove():
 @authorized_personnel_only
 def spam_sa_blacklist_add():
 	try:
-		return add_spamassassin_blacklist(request.form.get('entry', ''), env)
+		res = add_spamassassin_blacklist(request.form.get('entry', ''), env)
+		audit.log_admin_action(request.user_email, "spam_blacklist_add", request.form.get('entry', ''), None, env)
+		return res
 	except ValueError as e:
 		return (str(e), 400)
 
@@ -360,7 +433,9 @@ def spam_sa_blacklist_add():
 @authorized_personnel_only
 def spam_sa_blacklist_remove():
 	try:
-		return remove_spamassassin_blacklist(request.form.get('entry', ''), env)
+		res = remove_spamassassin_blacklist(request.form.get('entry', ''), env)
+		audit.log_admin_action(request.user_email, "spam_blacklist_remove", request.form.get('entry', ''), None, env)
+		return res
 	except ValueError as e:
 		return (str(e), 400)
 
@@ -368,7 +443,9 @@ def spam_sa_blacklist_remove():
 @authorized_personnel_only
 def spam_postgrey_whitelist_add():
 	try:
-		return add_postgrey_whitelist(request.form.get('entry', ''), env)
+		res = add_postgrey_whitelist(request.form.get('entry', ''), env)
+		audit.log_admin_action(request.user_email, "spam_postgrey_add", request.form.get('entry', ''), None, env)
+		return res
 	except ValueError as e:
 		return (str(e), 400)
 
@@ -376,7 +453,9 @@ def spam_postgrey_whitelist_add():
 @authorized_personnel_only
 def spam_postgrey_whitelist_remove():
 	try:
-		return remove_postgrey_whitelist(request.form.get('entry', ''), env)
+		res = remove_postgrey_whitelist(request.form.get('entry', ''), env)
+		audit.log_admin_action(request.user_email, "spam_postgrey_remove", request.form.get('entry', ''), None, env)
+		return res
 	except ValueError as e:
 		return (str(e), 400)
 
@@ -384,7 +463,9 @@ def spam_postgrey_whitelist_remove():
 @authorized_personnel_only
 def spam_postfix_blocked_add():
 	try:
-		return add_postfix_blocked_sender(request.form.get('entry', ''), env)
+		res = add_postfix_blocked_sender(request.form.get('entry', ''), env)
+		audit.log_admin_action(request.user_email, "spam_blocked_add", request.form.get('entry', ''), None, env)
+		return res
 	except ValueError as e:
 		return (str(e), 400)
 
@@ -392,7 +473,9 @@ def spam_postfix_blocked_add():
 @authorized_personnel_only
 def spam_postfix_blocked_remove():
 	try:
-		return remove_postfix_blocked_sender(request.form.get('entry', ''), env)
+		res = remove_postfix_blocked_sender(request.form.get('entry', ''), env)
+		audit.log_admin_action(request.user_email, "spam_blocked_remove", request.form.get('entry', ''), None, env)
+		return res
 	except ValueError as e:
 		return (str(e), 400)
 
@@ -409,7 +492,10 @@ def dns_zones():
 def dns_update():
 	from dns_update import do_dns_update
 	try:
-		return do_dns_update(env, force=request.form.get('force', '') == '1')
+		res = do_dns_update(env, force=request.form.get('force', '') == '1')
+		if not (isinstance(res, tuple) and len(res) > 1 and isinstance(res[1], int) and res[1] >= 400):
+			audit.log_admin_action(request.user_email, "dns_update", None, f"force: {request.form.get('force', '')}", env)
+		return res
 	except Exception as e:
 		return (str(e), 500)
 
@@ -424,7 +510,10 @@ def dns_get_secondary_nameserver():
 def dns_set_secondary_nameserver():
 	from dns_update import set_secondary_dns
 	try:
-		return set_secondary_dns([ns.strip() for ns in re.split(r"[, ]+", request.form.get('hostnames') or "") if ns.strip() != ""], env)
+		res = set_secondary_dns([ns.strip() for ns in re.split(r"[, ]+", request.form.get('hostnames') or "") if ns.strip() != ""], env)
+		if not isinstance(res, tuple):
+			audit.log_admin_action(request.user_email, "dns_secondary_ns_change", None, f"hostnames: {request.form.get('hostnames', '')}", env)
+		return res
 	except ValueError as e:
 		return (str(e), 400)
 
@@ -522,8 +611,15 @@ def dns_set_record(qname, rtype="A"):
 			action = "remove"
 
 		if set_custom_dns_record(qname, rtype, value, action, env):
-			return do_dns_update(env) or "Something isn't right."
-		return "OK"
+			res = do_dns_update(env) or "Something isn't right."
+		else:
+			res = "OK"
+
+		if not (isinstance(res, tuple) and len(res) > 1 and isinstance(res[1], int) and res[1] >= 400) and res != "Something isn't right.":
+			audit_action = "dns_custom_remove" if action == "remove" else "dns_custom_add"
+			details = f"rtype: {rtype}, value: {value or ''}"
+			audit.log_admin_action(request.user_email, audit_action, qname, details, env)
+		return res
 
 	except ValueError as e:
 		return (str(e), 400)
@@ -578,7 +674,10 @@ def ssl_get_status():
 def ssl_get_csr(domain):
 	from ssl_certificates import create_csr
 	ssl_private_key = os.path.join(os.path.join(env["STORAGE_ROOT"], 'ssl', 'ssl_private_key.pem'))
-	return create_csr(domain, ssl_private_key, request.form.get('countrycode', ''), env)
+	res = create_csr(domain, ssl_private_key, request.form.get('countrycode', ''), env)
+	if not isinstance(res, tuple):
+		audit.log_admin_action(request.user_email, "ssl_csr_generate", domain, f"countrycode: {request.form.get('countrycode', '')}", env)
+	return res
 
 @app.route('/ssl/install', methods=['POST'])
 @authorized_personnel_only
@@ -590,13 +689,17 @@ def ssl_install_cert():
 	ssl_chain = request.form.get('chain')
 	if domain not in get_web_domains(env):
 		return "Invalid domain name."
-	return install_cert(domain, ssl_cert, ssl_chain, env)
+	res = install_cert(domain, ssl_cert, ssl_chain, env)
+	if not isinstance(res, tuple) and not res.startswith("Invalid"):
+		audit.log_admin_action(request.user_email, "ssl_install", domain, None, env)
+	return res
 
 @app.route('/ssl/provision', methods=['POST'])
 @authorized_personnel_only
 def ssl_provision_certs():
 	from ssl_certificates import provision_certificates
 	requests = provision_certificates(env, limit_domains=None)
+	audit.log_admin_action(request.user_email, "ssl_provision", None, None, env)
 	return json_response({ "requests": requests })
 
 # multi-factor auth
@@ -641,6 +744,7 @@ def mfa_webauthn_register_complete():
 		response_data = json.loads(request.form.get("response_data", "{}"))
 		label = request.form.get("label", "Security Key")
 		recovery_codes = register_webauthn(email, response_data, label, env, auth_service)
+		audit.log_admin_action(request.user_email, "mfa_enable", email, f"webauthn: {label}", env)
 		return json_response({
 			"status": "ok",
 			"recovery_codes": recovery_codes
@@ -659,6 +763,7 @@ def totp_post_enable():
 	try:
 		validate_totp_secret(secret)
 		recovery_codes = enable_mfa(request.user_email, "totp", secret, token, label, env)
+		audit.log_admin_action(request.user_email, "mfa_enable", request.user_email, f"totp: {label}", env)
 		return json_response({
 			"status": "ok",
 			"recovery_codes": recovery_codes
@@ -678,6 +783,7 @@ def totp_post_disable():
 	except ValueError as e:
 		return (str(e), 400)
 	if result: # success
+		audit.log_admin_action(request.user_email, "mfa_disable", email, f"mfa-id: {request.form.get('mfa-id') or 'all'}", env)
 		return "OK"
 	# error
 	return ("Invalid user or MFA id.", 400)
@@ -694,7 +800,10 @@ def web_get_domains():
 @authorized_personnel_only
 def web_update():
 	from web_update import do_web_update
-	return do_web_update(env)
+	res = do_web_update(env)
+	if not isinstance(res, tuple):
+		audit.log_admin_action(request.user_email, "web_update", None, None, env)
+	return res
 
 # System
 
@@ -753,9 +862,11 @@ def show_updates():
 @authorized_personnel_only
 def do_updates():
 	utils.shell("check_call", ["/usr/bin/apt-get", "-qq", "update"])
-	return utils.shell("check_output", ["/usr/bin/apt-get", "-y", "upgrade"], env={
+	res = utils.shell("check_output", ["/usr/bin/apt-get", "-y", "upgrade"], env={
 		"DEBIAN_FRONTEND": "noninteractive"
 	})
+	audit.log_admin_action(request.user_email, "system_update_packages", None, None, env)
+	return res
 
 
 @app.route('/system/reboot', methods=["GET"])
@@ -772,7 +883,9 @@ def do_reboot():
 	# To keep the attack surface low, we don't allow a remote reboot if one isn't necessary.
 	from status_checks import is_reboot_needed_due_to_package_installation
 	if is_reboot_needed_due_to_package_installation():
-		return utils.shell("check_output", ["/sbin/shutdown", "-r", "now"], capture_stderr=True)
+		res = utils.shell("check_output", ["/sbin/shutdown", "-r", "now"], capture_stderr=True)
+		audit.log_admin_action(request.user_email, "system_reboot", None, None, env)
+		return res
 	return "No reboot is required, so it is not allowed."
 
 
@@ -795,12 +908,15 @@ def backup_get_custom():
 @authorized_personnel_only
 def backup_set_custom():
 	from backup import backup_set_custom
-	return json_response(backup_set_custom(env,
+	res = backup_set_custom(env,
 		request.form.get('target', ''),
 		request.form.get('target_user', ''),
 		request.form.get('target_pass', ''),
 		request.form.get('min_age', '')
-	))
+	)
+	if not (isinstance(res, tuple) and len(res) > 1 and isinstance(res[1], int) and res[1] >= 400) and not (isinstance(res, dict) and "error" in res):
+		audit.log_admin_action(request.user_email, "system_backup_config", request.form.get('target'), f"min_age: {request.form.get('min_age')}", env)
+	return json_response(res)
 
 @app.route('/system/backup/test-config', methods=["POST"])
 @authorized_personnel_only
@@ -836,8 +952,10 @@ def privacy_status_get():
 @authorized_personnel_only
 def privacy_status_set():
 	config = utils.load_settings(env)
-	config["privacy"] = (request.form.get('value') == "private")
+	val = request.form.get('value')
+	config["privacy"] = (val == "private")
 	utils.write_settings(config, env)
+	audit.log_admin_action(request.user_email, "system_privacy_change", val, None, env)
 	return "OK"
 
 @app.route('/system/services/postfix', methods=["GET"])
@@ -867,6 +985,7 @@ def set_system_services_postfix():
 		utils.shell("check_call", ["postconf", "-e", f"inet_protocols = {inet_protocols}"])
 		utils.shell("check_call", ["postconf", "-e", f"smtp_address_preference = {smtp_address_preference}"])
 		utils.shell("check_call", ["service", "postfix", "restart"])
+		audit.log_admin_action(request.user_email, "system_postfix_config", None, f"inet_protocols: {inet_protocols}, smtp_address_preference: {smtp_address_preference}", env)
 	except Exception as e:
 		return (str(e), 500)
 	return "OK"
@@ -1196,6 +1315,7 @@ def fail2ban_unban_api(jail):
 	
 	try:
 		utils.shell("check_call", ["fail2ban-client", "set", jail, "unbanip", ip])
+		audit.log_admin_action(request.user_email, "f2b_unban", ip, jail, env)
 		return "OK"
 	except Exception as e:
 		return (str(e), 500)
@@ -1213,6 +1333,7 @@ def fail2ban_ban_api(jail):
 	
 	try:
 		utils.shell("check_call", ["fail2ban-client", "set", jail, "banip", ip])
+		audit.log_admin_action(request.user_email, "f2b_ban", ip, jail, env)
 		return "OK"
 	except Exception as e:
 		return (str(e), 500)
@@ -1313,6 +1434,7 @@ def flush_mail_queue_api():
 		code, output = utils.shell("check_output", ["/usr/sbin/postqueue", "-f"], trap=True)
 		if code != 0:
 			code, output = utils.shell("check_output", ["postqueue", "-f"], trap=True)
+		audit.log_admin_action(request.user_email, "system_mail_queue_flush", None, None, env)
 		return "OK"
 	except Exception as e:
 		return (str(e), 500)
@@ -1329,6 +1451,7 @@ def delete_mail_queue_api():
 		code, output = utils.shell("check_output", ["/usr/sbin/postsuper", "-d", queue_id], trap=True)
 		if code != 0:
 			code, output = utils.shell("check_output", ["postsuper", "-d", queue_id], trap=True)
+		audit.log_admin_action(request.user_email, "system_mail_queue_delete", queue_id, None, env)
 		return "OK"
 	except Exception as e:
 		return (str(e), 500)
@@ -1529,6 +1652,16 @@ def spam_dmarc_stats_api():
 		"spam_7days": spam_stats
 	})
 
+@app.route('/system/audit-log', methods=['GET'])
+@authorized_personnel_only
+def system_audit_log():
+	try:
+		page = int(request.args.get('page', 1))
+		per_page = int(request.args.get('per_page', 50))
+	except ValueError:
+		return ("Invalid pagination parameters.", 400)
+	action = request.args.get('action', 'all')
+	return json_response(audit.get_audit_log(page, per_page, action, env))
 
 # APP
 

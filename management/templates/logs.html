@@ -107,9 +107,87 @@
 	</div>
 </div>
 
+<div class="panel" style="margin-top: 2rem;">
+	<div class="panel-heading">
+		<h3>Admin Action Audit Trail</h3>
+	</div>
+	<div class="panel-body">
+		<!-- Filtering controls -->
+		<div class="row" style="margin-bottom: 1.5rem;">
+			<div class="col-md-4">
+				<div class="form-group">
+					<label for="audit-filter-action">Filter Action Category:</label>
+					<select id="audit-filter-action" class="form-control" onchange="fetch_audit_logs(true);">
+						<option value="all">All Actions</option>
+						<option value="users">Users</option>
+						<option value="aliases">Aliases</option>
+						<option value="spam">Spam</option>
+						<option value="dns">DNS</option>
+						<option value="ssl">SSL</option>
+						<option value="system">System</option>
+						<option value="security">Security</option>
+					</select>
+				</div>
+			</div>
+			<div class="col-md-4">
+				<div class="form-group">
+					<label>&nbsp;</label>
+					<div class="checkbox" style="margin-top: 10px;">
+						<label style="font-weight: 500; font-size: 0.95rem; user-select: none; display: inline-flex; align-items: center; gap: 8px;">
+							<input type="checkbox" id="audit-auto-refresh" onchange="toggle_audit_refresh();" style="margin-top: 0;"> Auto-refresh (30s)
+						</label>
+					</div>
+				</div>
+			</div>
+			<div class="col-md-4 text-right">
+				<div class="form-group">
+					<label>&nbsp;</label>
+					<button type="button" class="btn btn-default btn-block" style="margin-top: 5px; max-width: 140px; display: inline-block;" onclick="fetch_audit_logs(true);">
+						<span class="fa fa-refresh"></span> Refresh Audit
+					</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- Table -->
+		<div class="table-responsive" style="border: none;">
+			<table id="audit-table" class="table" style="width: 100%; margin-bottom: 0 !important;">
+				<thead>
+					<tr>
+						<th scope="col" width="20%">Timestamp</th>
+						<th scope="col" width="20%">Admin</th>
+						<th scope="col" width="15%">Action</th>
+						<th scope="col" width="20%">Target</th>
+						<th scope="col" width="25%">Details</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td colspan="5" class="text-muted text-center">Loading audit trail...</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+
+		<!-- Load More Pagination -->
+		<div id="audit-pagination-container" class="text-center" style="margin-top: 1.5rem; display: none;">
+			<button type="button" class="btn btn-primary" id="audit-load-more-btn" onclick="load_next_audit_page();">
+				Load More
+			</button>
+		</div>
+	</div>
+</div>
+
 <script>
 function show_logs() {
 	fetch_system_logs();
+	fetch_audit_logs(true);
+	
+	if (audit_refresh_interval) {
+		clearInterval(audit_refresh_interval);
+		audit_refresh_interval = null;
+	}
+	$('#audit-auto-refresh').prop('checked', false);
 }
 
 function apply_preset(logType, query, isRegex) {
@@ -183,13 +261,87 @@ function fetch_system_logs() {
 
 	return false;
 }
+var audit_current_page = 1;
+var audit_total_pages = 1;
+var audit_refresh_interval = null;
 
-function escapeHtml(text) {
-	return text
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&#039;");
+function fetch_audit_logs(reset) {
+	if (reset) {
+		audit_current_page = 1;
+		$('#audit-table tbody').html('<tr><td colspan="5" class="text-muted text-center">Loading audit trail...</td></tr>');
+		$('#audit-pagination-container').hide();
+	}
+
+	var actionFilter = $('#audit-filter-action').val();
+	var url = "/system/audit-log?page=" + audit_current_page + "&per_page=15&action=" + actionFilter;
+
+	api(url, "GET", {}, function(data) {
+		if (reset) {
+			$('#audit-table tbody').empty();
+		}
+
+		if (!data.entries || data.entries.length === 0) {
+			if (reset) {
+				$('#audit-table tbody').html('<tr><td colspan="5" class="text-muted text-center">No audit entries found.</td></tr>');
+			}
+			$('#audit-pagination-container').hide();
+			return;
+		}
+
+		audit_total_pages = data.total_pages;
+
+		$.each(data.entries, function(idx, item) {
+			var cleanTime = escapeHtml(item.timestamp);
+			try {
+				var dateObj = new Date(item.timestamp);
+				if (!isNaN(dateObj.getTime())) {
+					cleanTime = dateObj.toLocaleString();
+				}
+			} catch (e) {}
+
+			var row = $('<tr>' +
+				'<td>' + cleanTime + '</td>' +
+				'<td><strong>' + escapeHtml(item.admin_email) + '</strong></td>' +
+				'<td><code style="background-color: var(--bg-app); color: var(--text-main); border: none;">' + escapeHtml(item.action) + '</code></td>' +
+				'<td>' + (item.target ? escapeHtml(item.target) : '<span class="text-muted">None</span>') + '</td>' +
+				'<td>' + (item.details ? escapeHtml(item.details) : '<span class="text-muted">None</span>') + '</td>' +
+				'</tr>');
+			$('#audit-table tbody').append(row);
+		});
+
+		if (audit_current_page < audit_total_pages) {
+			$('#audit-pagination-container').show();
+			$('#audit-load-more-btn').prop('disabled', false).text("Load More");
+		} else {
+			$('#audit-pagination-container').hide();
+		}
+	}, function(err) {
+		if (reset) {
+			$('#audit-table tbody').html('<tr><td colspan="5" class="text-danger text-center">Failed to load audit logs: ' + escapeHtml(err) + '</td></tr>');
+		}
+	});
+}
+
+function load_next_audit_page() {
+	if (audit_current_page < audit_total_pages) {
+		audit_current_page++;
+		$('#audit-load-more-btn').prop('disabled', true).text("Loading...");
+		fetch_audit_logs(false);
+	}
+}
+
+function toggle_audit_refresh() {
+	if ($('#audit-auto-refresh').is(':checked')) {
+		if (!audit_refresh_interval) {
+			audit_refresh_interval = setInterval(function() {
+				fetch_audit_logs(true);
+			}, 30000);
+		}
+	} else {
+		if (audit_refresh_interval) {
+			clearInterval(audit_refresh_interval);
+			audit_refresh_interval = null;
+		}
+	}
 }
 </script>

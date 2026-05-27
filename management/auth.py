@@ -1,4 +1,4 @@
-import base64, hmac, json, secrets
+import base64, hmac, json, secrets, time
 from datetime import timedelta
 
 from expiringdict import ExpiringDict
@@ -73,6 +73,7 @@ class AuthService:
 				del self.sessions[sessionid]
 			else:
 				# Re-up the session so that it does not expire.
+				session["last_activity"] = time.time()
 				self.sessions[sessionid] = session
 
 		# If no password was given, but a username was given, we're missing some information.
@@ -172,12 +173,18 @@ class AuthService:
 			"email": username,
 			"password_token": self.create_user_password_state_token(username, env),
 			"type": type,
+			"last_activity": time.time(),
 		}
 		return token
 
 	def get_session(self, user_email, session_key, session_type, env):
 		if session_key not in self.sessions: return None
 		session = self.sessions[session_key]
+		if session_type == "login":
+			IDLE_TIMEOUT_SECONDS = 1800 # 30 minutes
+			if (time.time() - session.get("last_activity", 0)) > IDLE_TIMEOUT_SECONDS:
+				del self.sessions[session_key]
+				return None
 		if session_type == "login" and session["email"] != user_email: return None
 		if session["type"] != session_type: return None
 		if session["password_token"] != self.create_user_password_state_token(session["email"], env): return None
