@@ -61,6 +61,12 @@ def authorized_personnel_only(viewfunc):
 		try:
 			email, privs = auth_service.authenticate(request, env)
 		except ValueError as e:
+			if "Rate limit exceeded" in str(e):
+				return Response(json.dumps({
+					"status": "rate-limited",
+					"reason": str(e),
+				})+"\n", status=429, mimetype='application/json')
+
 			# Write a line in the log recording the failed login, unless no authorization header
 			# was given which can happen on an initial request before a 403 response.
 			if "Authorization" in request.headers:
@@ -163,6 +169,11 @@ def login():
 				"status": "invalid",
 				"reason": "Security key (WebAuthn) support is not available on the server. Please run the Mail-in-a-Box setup script to reinstall dependencies, then restart the service.",
 			})
+		if "Rate limit exceeded" in str(e):
+			return json_response({
+				"status": "rate-limited",
+				"reason": str(e),
+			}, status=429)
 		# Log the failed login
 		log_failed_login(request)
 		return json_response({
@@ -629,8 +640,11 @@ def mfa_webauthn_register_complete():
 		email = request.user_email
 		response_data = json.loads(request.form.get("response_data", "{}"))
 		label = request.form.get("label", "Security Key")
-		register_webauthn(email, response_data, label, env, auth_service)
-		return ("OK", 200)
+		recovery_codes = register_webauthn(email, response_data, label, env, auth_service)
+		return json_response({
+			"status": "ok",
+			"recovery_codes": recovery_codes
+		})
 	except ValueError as e:
 		return (str(e), 400)
 
@@ -644,10 +658,13 @@ def totp_post_enable():
 		return ("Bad Input", 400)
 	try:
 		validate_totp_secret(secret)
-		enable_mfa(request.user_email, "totp", secret, token, label, env)
+		recovery_codes = enable_mfa(request.user_email, "totp", secret, token, label, env)
+		return json_response({
+			"status": "ok",
+			"recovery_codes": recovery_codes
+		})
 	except ValueError as e:
 		return (str(e), 400)
-	return "OK"
 
 @app.route('/mfa/disable', methods=['POST'])
 @authorized_personnel_only
@@ -784,6 +801,30 @@ def backup_set_custom():
 		request.form.get('target_pass', ''),
 		request.form.get('min_age', '')
 	))
+
+@app.route('/system/backup/test-config', methods=["POST"])
+@authorized_personnel_only
+def backup_test_config():
+	from backup import list_target_files
+	target = request.form.get('target', '')
+	target_user = request.form.get('target_user', '')
+	target_pass = request.form.get('target_pass', '')
+
+	config = {
+		"target": target,
+		"target_user": target_user,
+		"target_pass": target_pass,
+	}
+
+	try:
+		if target in {"off", "local"}:
+			return json_response({ "status": "ok", "message": "Connection test not needed for local/disabled backup." })
+		
+		# list_target_files raises ValueError or Exception on failure, returns list on success
+		list_target_files(config)
+		return json_response({ "status": "ok" })
+	except Exception as e:
+		return json_response({ "status": "error", "message": str(e) })
 
 @app.route('/system/privacy', methods=["GET"])
 @authorized_personnel_only

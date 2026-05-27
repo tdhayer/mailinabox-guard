@@ -161,6 +161,7 @@
   <div class="form-group">
     <div class="col-sm-offset-2 col-sm-10">
       <button id="set-s3-backup-button" type="submit" class="btn btn-primary">Save</button>
+      <button id="test-s3-backup-button" type="button" class="btn btn-secondary" onclick="test_backup_connection(); return false;" style="margin-left: 10px;">Test Connection</button>
     </div>
   </div>
 </form>
@@ -186,7 +187,69 @@ function toggle_form() {
   $(".backup-target-local, .backup-target-rsync, .backup-target-s3, .backup-target-b2").hide();
   $(".backup-target-" + target_type).show();
 
+  if (target_type == "local" || target_type == "off") {
+    $("#test-s3-backup-button").hide();
+  } else {
+    $("#test-s3-backup-button").show();
+  }
+
   init_inputs(target_type);
+}
+
+function test_backup_connection() {
+  var target_type = $("#backup-target-type").val();
+  if (target_type == "local" || target_type == "off") {
+    show_modal_error("Backup Test", $("<p/>").text("Connection testing is not applicable for local or disabled backup target."));
+    return;
+  }
+
+  var target_user = $("#backup-target-user").val();
+  var target_pass = $("#backup-target-pass").val();
+
+  var target;
+  if (target_type == "s3")
+    target = "s3://"
+             + ($("#backup-target-s3-region-name").val() ? ($("#backup-target-s3-region-name").val() + "@") : "")
+             + $("#backup-target-s3-host").val()
+             + "/" + $("#backup-target-s3-path").val();
+  else if (target_type == "rsync") {
+    target = "rsync://" + $("#backup-target-rsync-user").val() + "@" + $("#backup-target-rsync-host").val()
+                                                                + "/" + $("#backup-target-rsync-path").val();
+    target_user = '';
+  } else if (target_type == "b2") {
+    target = 'b2://' + $('#backup-target-b2-user').val() + ':' + encodeURIComponent($('#backup-target-b2-pass').val())
+        + '@' + $('#backup-target-b2-bucket').val()
+    target_user = '';
+    target_pass = '';
+  }
+
+  var test_btn = $("#test-s3-backup-button");
+  var save_btn = $("#set-s3-backup-button");
+  test_btn.prop('disabled', true).text('Testing...');
+  save_btn.prop('disabled', true);
+
+  api(
+    "/system/backup/test-config",
+    "POST",
+    {
+      target: target,
+      target_user: target_user,
+      target_pass: target_pass
+    },
+    function(r) {
+      test_btn.prop('disabled', false).text('Test Connection');
+      save_btn.prop('disabled', false);
+      if (r.status == "ok") {
+        show_modal_error("Backup Connection Success", $("<p class='text-success'/>").text("Connection test succeeded! The backup target is reachable and credentials are valid."));
+      } else {
+        show_modal_error("Backup Connection Failure", $("<p class='text-danger'/>").text(r.message || "Unknown error occurred."));
+      }
+    },
+    function(r) {
+      test_btn.prop('disabled', false).text('Test Connection');
+      save_btn.prop('disabled', false);
+      show_modal_error("Backup Connection Failure", $("<p class='text-danger'/>").text(r));
+    });
 }
 
 function nice_size(bytes) {

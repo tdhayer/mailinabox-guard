@@ -157,6 +157,132 @@ class TestDashboardAPIs(unittest.TestCase):
         self.assertEqual(len(data['lines']), 2)
         mock_shell.assert_called_with('check_output', ['grep', '-E', 'matched', '/var/log/mail.log'], trap=True)
 
+    @patch('daemon.auth_service.authenticate')
+    @patch('backup.list_target_files')
+    def test_backup_test_config_success(self, mock_list_files, mock_authenticate):
+        mock_authenticate.return_value = ('admin@example.com', ['admin'])
+        mock_list_files.return_value = [('file1.txt', 123)]
+        
+        response = self.app.post('/system/backup/test-config', data={
+            'target': 's3://some-bucket/some-dir',
+            'target_user': 'user123',
+            'target_pass': 'pass123'
+        })
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.data.decode('utf-8'))
+        self.assertEqual(data['status'], 'ok')
+        mock_list_files.assert_called_once_with({
+            'target': 's3://some-bucket/some-dir',
+            'target_user': 'user123',
+            'target_pass': 'pass123'
+        })
+
+    @patch('daemon.auth_service.authenticate')
+    @patch('backup.list_target_files')
+    def test_backup_test_config_failure(self, mock_list_files, mock_authenticate):
+        mock_authenticate.return_value = ('admin@example.com', ['admin'])
+        mock_list_files.side_effect = ValueError("connection failed")
+        
+        response = self.app.post('/system/backup/test-config', data={
+            'target': 's3://some-bucket/some-dir',
+            'target_user': 'user123',
+            'target_pass': 'pass123'
+        })
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.data.decode('utf-8'))
+        self.assertEqual(data['status'], 'error')
+        self.assertEqual(data['message'], 'connection failed')
+
+    @patch('auth.get_hash_mfa_state')
+    @patch('auth.get_mail_password')
+    @patch('auth.get_mail_user_privileges')
+    @patch('auth.AuthService.check_user_auth')
+    def test_api_rate_limiting(self, mock_check_auth, mock_get_privs, mock_get_pw, mock_get_mfa):
+        # Clear rate limiter state first to ensure test isolation
+        daemon.auth_service.failed_logins_ip.clear()
+        daemon.auth_service.failed_logins_user.clear()
+        daemon.auth_service.sessions.clear()
+
+        mock_check_auth.side_effect = ValueError("Incorrect email address or password.")
+        mock_get_privs.return_value = ['admin']
+        mock_get_pw.return_value = "dummy_hash"
+        mock_get_mfa.return_value = []
+
+        import base64
+        credentials = base64.b64encode(b"target-user@example.com:wrongpassword").decode('utf-8')
+        headers = {
+            'Authorization': f'Basic {credentials}',
+            'X-Forwarded-For': '192.0.2.1'
+        }
+
+        # First 5 attempts should return 200 with status "invalid"
+        for i in range(5):
+            response = self.app.post('/login', headers=headers)
+            self.assertEqual(response.status_code, 200)
+            data = json.loads(response.data.decode('utf-8'))
+            self.assertEqual(data['status'], 'invalid')
+
+        # 6th attempt should return 429 with status "rate-limited"
+        response = self.app.post('/login', headers=headers)
+        self.assertEqual(response.status_code, 429)
+        data = json.loads(response.data.decode('utf-8'))
+        self.assertEqual(data['status'], 'rate-limited')
+        self.assertIn('Rate limit exceeded', data['reason'])
+
+        # Reset counts for isolation/cleanup
+        daemon.auth_service.failed_logins_ip.clear()
+        daemon.auth_service.failed_logins_user.clear()
+        daemon.auth_service.sessions.clear()
+
+    @patch('auth.get_hash_mfa_state')
+    @patch('auth.get_mail_password')
+    @patch('auth.get_mail_user_privileges')
+    @patch('auth.AuthService.check_user_auth')
+    def test_api_rate_limiting_reset_on_success(self, mock_check_auth, mock_get_privs, mock_get_pw, mock_get_mfa):
+        daemon.auth_service.failed_logins_ip.clear()
+        daemon.auth_service.failed_logins_user.clear()
+        daemon.auth_service.sessions.clear()
+
+        # First 2 fail, then 3rd succeeds
+        mock_check_auth.side_effect = [
+            ValueError("Incorrect email address or password."),
+            ValueError("Incorrect email address or password."),
+            None
+        ]
+        mock_get_privs.return_value = ['admin']
+        mock_get_pw.return_value = "dummy_hash"
+        mock_get_mfa.return_value = []
+
+        import base64
+        credentials = base64.b64encode(b"target-user2@example.com:password").decode('utf-8')
+        headers = {
+            'Authorization': f'Basic {credentials}',
+            'X-Forwarded-For': '192.0.2.2'
+        }
+
+        # Fail twice
+        for i in range(2):
+            response = self.app.post('/login', headers=headers)
+            self.assertEqual(response.status_code, 200)
+            data = json.loads(response.data.decode('utf-8'))
+            self.assertEqual(data['status'], 'invalid')
+
+        self.assertEqual(daemon.auth_service.failed_logins_ip.get('192.0.2.2'), 2)
+        self.assertEqual(daemon.auth_service.failed_logins_user.get('target-user2@example.com'), 2)
+
+        # 3rd attempt succeeds
+        response = self.app.post('/login', headers=headers)
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.data.decode('utf-8'))
+        self.assertEqual(data['status'], 'ok')
+
+        # Counter should be reset
+        self.assertEqual(daemon.auth_service.failed_logins_ip.get('192.0.2.2', 0), 0)
+        self.assertEqual(daemon.auth_service.failed_logins_user.get('target-user2@example.com', 0), 0)
+
+        # Cleanup sessions
+        daemon.auth_service.sessions.clear()
+
 if __name__ == '__main__':
     unittest.main()
 

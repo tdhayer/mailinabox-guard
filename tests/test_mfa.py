@@ -47,6 +47,15 @@ class TestMFA(unittest.TestCase):
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             );
         """)
+        c.execute("""
+            CREATE TABLE mfa_recovery_codes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                code_hash TEXT NOT NULL,
+                used INTEGER DEFAULT 0,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
+        """)
         
         # Insert a test user
         c.execute("INSERT INTO users (email, password) VALUES (?, ?)", ("test@example.com", "password_hash"))
@@ -228,6 +237,70 @@ class TestMFA(unittest.TestCase):
         status, hints = mfa.validate_auth_mfa("test@example.com", request, self.env)
         self.assertFalse(status)
         self.assertEqual(hints, ["webauthn-library-unavailable"])
+
+    def test_recovery_codes_flow(self):
+        # Initial status: no recovery codes
+        c = self.db_conn.cursor()
+        c.execute("SELECT COUNT(*) FROM mfa_recovery_codes WHERE user_id=1")
+        self.assertEqual(c.fetchone()[0], 0)
+        
+        # Enable first MFA device -> should generate recovery codes
+        secret = pyotp.random_base32()
+        token = pyotp.TOTP(secret).now()
+        recovery_codes = mfa.enable_mfa("test@example.com", "totp", secret, token, "My Device", self.env)
+        
+        self.assertIsNotNone(recovery_codes)
+        self.assertEqual(len(recovery_codes), 8)
+        for code in recovery_codes:
+            self.assertEqual(len(code), 14)
+            self.assertEqual(code.count('-'), 2)
+            
+        c.execute("SELECT COUNT(*) FROM mfa_recovery_codes WHERE user_id=1 AND used=0")
+        self.assertEqual(c.fetchone()[0], 8)
+        
+        # Test validation of invalid codes
+        self.assertFalse(mfa.check_and_use_recovery_code("test@example.com", "invalid-code", self.env))
+        self.assertFalse(mfa.check_and_use_recovery_code("test@example.com", "aaaa-bbbb-cccc", self.env))
+        
+        # Test validation of a correct code
+        valid_code = recovery_codes[0]
+        self.assertTrue(mfa.check_and_use_recovery_code("test@example.com", valid_code, self.env))
+        
+        # Match used count
+        c.execute("SELECT COUNT(*) FROM mfa_recovery_codes WHERE user_id=1 AND used=1")
+        self.assertEqual(c.fetchone()[0], 1)
+        c.execute("SELECT COUNT(*) FROM mfa_recovery_codes WHERE user_id=1 AND used=0")
+        self.assertEqual(c.fetchone()[0], 7)
+        
+        # Reuse same code -> should fail
+        self.assertFalse(mfa.check_and_use_recovery_code("test@example.com", valid_code, self.env))
+        
+        # Bypass validate_auth_mfa via recovery code
+        request = MagicMock()
+        request.headers = {'x-auth-token': recovery_codes[1]}
+        status, hints = mfa.validate_auth_mfa("test@example.com", request, self.env)
+        self.assertTrue(status)
+        self.assertEqual(hints, [])
+        
+        # Ensure code was used
+        c.execute("SELECT COUNT(*) FROM mfa_recovery_codes WHERE user_id=1 AND used=1")
+        self.assertEqual(c.fetchone()[0], 2)
+        
+        # Re-enabling a second device should NOT regenerate codes
+        token2 = pyotp.TOTP(secret).now()
+        recovery_codes_2 = mfa.enable_mfa("test@example.com", "totp", secret, token2, "Device 2", self.env)
+        self.assertIsNone(recovery_codes_2)
+        
+        # Disabling specific device (still has 1 left) -> recovery codes remain
+        state = mfa.get_mfa_state("test@example.com", self.env)
+        mfa.disable_mfa("test@example.com", state[0]["id"], self.env)
+        c.execute("SELECT COUNT(*) FROM mfa_recovery_codes WHERE user_id=1")
+        self.assertEqual(c.fetchone()[0], 8)
+        
+        # Disabling all/last device -> recovery codes cleaned up
+        mfa.disable_mfa("test@example.com", None, self.env)
+        c.execute("SELECT COUNT(*) FROM mfa_recovery_codes WHERE user_id=1")
+        self.assertEqual(c.fetchone()[0], 0)
 
 if __name__ == '__main__':
     unittest.main()

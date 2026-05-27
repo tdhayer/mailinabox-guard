@@ -48,6 +48,30 @@ def get_hash_mfa_state(email, env):
 		for s in mfa_state
 	]
 
+def check_and_use_recovery_code(email, token, env):
+	if not token:
+		return False
+	
+	# Normalise token format (remove spaces, lowercase)
+	clean_token = token.strip().lower()
+	if len(clean_token) != 14 or clean_token.count('-') != 2:
+		return False # format is xxxx-xxxx-xxxx
+		
+	import hashlib
+	token_hash = hashlib.sha256(clean_token.encode('utf-8')).hexdigest()
+	
+	conn, c = open_database(env, with_connection=True)
+	user_id = get_user_id(email, c)
+	
+	c.execute('SELECT id FROM mfa_recovery_codes WHERE user_id=? AND code_hash=? AND used=0', (user_id, token_hash))
+	row = c.fetchone()
+	if row:
+		code_id = row[0]
+		c.execute('UPDATE mfa_recovery_codes SET used=1 WHERE id=?', (code_id,))
+		conn.commit()
+		return True
+	return False
+
 def enable_mfa(email, type, secret, token, label, env):
 	if type == "totp":
 		validate_totp_secret(secret)
@@ -64,8 +88,34 @@ def enable_mfa(email, type, secret, token, label, env):
 		raise ValueError(msg)
 
 	conn, c = open_database(env, with_connection=True)
-	c.execute('INSERT INTO mfa (user_id, type, secret, label) VALUES (?, ?, ?, ?)', (get_user_id(email, c), type, secret, label))
+	user_id = get_user_id(email, c)
+	c.execute('INSERT INTO mfa (user_id, type, secret, label) VALUES (?, ?, ?, ?)', (user_id, type, secret, label))
+	
+	# Check if the user already has active recovery codes
+	c.execute('SELECT COUNT(*) FROM mfa_recovery_codes WHERE user_id=? AND used=0', (user_id,))
+	has_codes = c.fetchone()[0] > 0
+	
+	recovery_codes = None
+	if not has_codes:
+		import secrets
+		import string
+		import hashlib
+		
+		alphabet = string.ascii_lowercase + string.digits
+		codes = []
+		for _ in range(8):
+			part1 = "".join(secrets.choice(alphabet) for _ in range(4))
+			part2 = "".join(secrets.choice(alphabet) for _ in range(4))
+			part3 = "".join(secrets.choice(alphabet) for _ in range(4))
+			codes.append(f"{part1}-{part2}-{part3}")
+			
+		for code in codes:
+			code_hash = hashlib.sha256(code.encode('utf-8')).hexdigest()
+			c.execute('INSERT INTO mfa_recovery_codes (user_id, code_hash, used) VALUES (?, ?, 0)', (user_id, code_hash))
+		recovery_codes = codes
+
 	conn.commit()
+	return recovery_codes
 
 def set_mru_token(email, mfa_id, token, env):
 	conn, c = open_database(env, with_connection=True)
@@ -74,12 +124,18 @@ def set_mru_token(email, mfa_id, token, env):
 
 def disable_mfa(email, mfa_id, env):
 	conn, c = open_database(env, with_connection=True)
+	user_id = get_user_id(email, c)
 	if mfa_id is None:
 		# Disable all MFA for a user.
-		c.execute('DELETE FROM mfa WHERE user_id=?', (get_user_id(email, c),))
+		c.execute('DELETE FROM mfa WHERE user_id=?', (user_id,))
+		c.execute('DELETE FROM mfa_recovery_codes WHERE user_id=?', (user_id,))
 	else:
 		# Disable a particular MFA mode for a user.
-		c.execute('DELETE FROM mfa WHERE user_id=? AND id=?', (get_user_id(email, c), mfa_id))
+		c.execute('DELETE FROM mfa WHERE user_id=? AND id=?', (user_id, mfa_id))
+		# If no more MFA devices are enabled, clear recovery codes too
+		c.execute('SELECT COUNT(*) FROM mfa WHERE user_id=?', (user_id,))
+		if c.fetchone()[0] == 0:
+			c.execute('DELETE FROM mfa_recovery_codes WHERE user_id=?', (user_id,))
 	conn.commit()
 	return c.rowcount > 0
 
@@ -167,7 +223,7 @@ def register_webauthn(email, response_data, label, env, auth_service):
 	
 	del auth_service.webauthn_challenges[email]
 	
-	enable_mfa(email, "webauthn", json.dumps(secret_data), "", label, env)
+	return enable_mfa(email, "webauthn", json.dumps(secret_data), "", label, env)
 
 def validate_auth_mfa(email, request, env, auth_service=None):
 	# Validates that a login request satisfies any MFA modes
@@ -185,6 +241,12 @@ def validate_auth_mfa(email, request, env, auth_service=None):
 	if len(mfa_state) == 0:
 		return (True, [])
 
+	token = request.headers.get('x-auth-token')
+
+	# Check if the token is a valid recovery code first
+	if check_and_use_recovery_code(email, token, env):
+		return (True, [])
+
 	webauthn_devices = [m for m in mfa_state if m["type"] == "webauthn"]
 
 	# If user has webauthn devices registered but the library isn't available,
@@ -199,7 +261,6 @@ def validate_auth_mfa(email, request, env, auth_service=None):
 
 	# Try the enabled MFA modes.
 	hints = set()
-	token = request.headers.get('x-auth-token')
 	
 	for mfa_mode in mfa_state:
 		if mfa_mode["type"] == "totp":

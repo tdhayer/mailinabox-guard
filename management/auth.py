@@ -19,6 +19,8 @@ class AuthService:
 		self.init_system_api_key()
 		self.sessions = ExpiringDict(max_len=64, max_age_seconds=self.max_session_duration.total_seconds())
 		self.webauthn_challenges = ExpiringDict(max_len=64, max_age_seconds=120)
+		self.failed_logins_ip = ExpiringDict(max_len=1000, max_age_seconds=900)
+		self.failed_logins_user = ExpiringDict(max_len=1000, max_age_seconds=900)
 
 	def init_system_api_key(self):
 		"""Write an API key to a local file so local processes can use the API"""
@@ -79,9 +81,32 @@ class AuthService:
 			raise ValueError(msg)
 
 		else:
-			# The user is trying to log in with a username and a password
-			# (and possibly a MFA token). On failure, an exception is raised.
-			self.check_user_auth(username, password, request, env)
+			ip = request.headers.getlist("X-Forwarded-For")[0] if request.headers.getlist("X-Forwarded-For") else request.remote_addr
+			
+			if self.failed_logins_ip.get(ip, 0) >= 5:
+				raise ValueError("Rate limit exceeded. Please try again later.")
+			if username and self.failed_logins_user.get(username.lower().strip(), 0) >= 5:
+				raise ValueError("Rate limit exceeded. Please try again later.")
+
+			try:
+				# The user is trying to log in with a username and a password
+				# (and possibly a MFA token). On failure, an exception is raised.
+				self.check_user_auth(username, password, request, env)
+				
+				# On success, reset the failed login count for both IP and username
+				if ip in self.failed_logins_ip:
+					del self.failed_logins_ip[ip]
+				if username and username.lower().strip() in self.failed_logins_user:
+					del self.failed_logins_user[username.lower().strip()]
+			except ValueError as e:
+				err_str = str(e)
+				# Do not count MFA prompt challenges (missing tokens) as failures
+				if "missing-totp-token" not in err_str and "missing-webauthn-token" not in err_str and "webauthn-library-unavailable" not in err_str:
+					self.failed_logins_ip[ip] = self.failed_logins_ip.get(ip, 0) + 1
+					if username:
+						user_key = username.lower().strip()
+						self.failed_logins_user[user_key] = self.failed_logins_user.get(user_key, 0) + 1
+				raise
 
 		# Get privileges for authorization. This call should never fail because by this
 		# point we know the email address is a valid user --- unless the user has been

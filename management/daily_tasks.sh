@@ -23,3 +23,6 @@ management/ssl_certificates.py -q  2>&1 | management/email_administrator.py "TLS
 
 # Run status checks and email the administrator if anything changed.
 management/status_checks.py --show-changes  2>&1 | management/email_administrator.py "Status Checks Change Notice"
+
+# Run proactive DMARC authentication alerts.
+management/dmarc_alerts.py 2>&1 | management/email_administrator.py "Proactive DMARC/Spam Failure Alert"

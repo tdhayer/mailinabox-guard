@@ -242,7 +242,7 @@ and ensure every administrator account for this control panel does the same.</st
                             response_data: JSON.stringify(response_data),
                             label: el.webauthnSetupLabel.value
                         },
-                        function(res) { do_logout(); },
+                        function(res) { handle_enable_success(res); },
                         function(res) { 
                             render_error("Failed to complete registration: " + res);
                             el.webauthnSetupSubmit.removeAttribute('disabled');
@@ -349,10 +349,26 @@ and ensure every administrator account for this control panel does the same.</st
                 secret: $(el.totpSetupSecret).val(),
                 label: $(el.totpSetupLabel).val()
             },
-            function(res) { do_logout(); },
+            function(res) { handle_enable_success(res); },
             function(res) { render_error(res); }
         );
 
         return false;
+    }
+
+    function handle_enable_success(res) {
+        if (res && res.recovery_codes && res.recovery_codes.length > 0) {
+            var html = "<p><strong>Two-factor authentication is now enabled!</strong></p>" +
+                       "<p>Save these 8 recovery codes in a secure location. You can use them to access your account if you lose your MFA device. Each code can only be used <strong>once</strong>.</p>" +
+                       "<div style='background: #f7f9fa; border: 1px solid #ddd; padding: 15px; font-family: monospace; font-size: 1.15em; line-height: 1.6; border-radius: 4px; text-align: center; margin: 15px 0; font-weight: bold; color: #111; letter-spacing: 0.5px;'>" +
+                       res.recovery_codes.join("<br>") +
+                       "</div>" +
+                       "<p class='text-danger'><strong>Warning:</strong> You will not be able to view these codes again. Please save them before closing this window.</p>";
+            show_modal_error("MFA Recovery Codes", html, function() {
+                do_logout();
+            });
+        } else {
+            do_logout();
+        }
     }
 </script>
