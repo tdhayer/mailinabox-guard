@@ -1,14 +1,30 @@
 <style>
-.btn-pill {
+.btn-preset {
+	background-color: var(--primary-light) !important;
+	color: var(--primary-color) !important;
+	border: 1px solid transparent !important;
 	border-radius: 50px !important;
-	padding: 2px 10px !important;
-	font-weight: 500 !important;
-	transition: all 0.15s ease-in-out !important;
-	font-size: 0.85em !important;
+	padding: 4px 12px !important;
+	font-weight: 600 !important;
+	font-size: 0.825rem !important;
+	transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+	cursor: pointer !important;
+	display: inline-flex !important;
+	align-items: center !important;
+	justify-content: center !important;
+	line-height: 1.2 !important;
+	box-shadow: var(--shadow-sm) !important;
+	margin-right: 4px;
 }
-.btn-pill:hover {
-	transform: translateY(-1px);
-	box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+.btn-preset:hover {
+	background-color: var(--primary-color) !important;
+	color: #ffffff !important;
+	transform: translateY(-2px) !important;
+	box-shadow: var(--shadow-md) !important;
+	text-decoration: none !important;
+}
+.btn-preset:active {
+	transform: translateY(0) !important;
 }
 </style>
 
@@ -73,21 +89,21 @@
 			<div class="row" style="margin-top: 0.5rem; margin-bottom: 0.5rem;">
 				<div class="col-md-12">
 					<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 15px; margin-top: 5px;">
-						<span style="font-weight: bold; font-size: 0.9em; color: #666;">Search Options:</span>
-						<label class="checkbox-inline" style="font-weight: 500; font-size: 0.9em; user-select: none; margin-top: 0; display: inline-flex; align-items: center; gap: 5px;">
+						<span style="font-weight: 600; font-size: 0.9em; color: var(--text-muted);">Search Options:</span>
+						<label class="checkbox-inline" style="font-weight: 500; font-size: 0.9em; user-select: none; margin-top: 0; display: inline-flex; align-items: center; gap: 5px; color: var(--text-main);">
 							<input type="checkbox" id="log-use-regex" onchange="fetch_system_logs();" style="margin-top: 0;"> Use Regex (e.g. a|b)
 						</label>
-						<label class="checkbox-inline" style="font-weight: 500; font-size: 0.9em; user-select: none; margin-top: 0; display: inline-flex; align-items: center; gap: 5px;">
+						<label class="checkbox-inline" style="font-weight: 500; font-size: 0.9em; user-select: none; margin-top: 0; display: inline-flex; align-items: center; gap: 5px; color: var(--text-main);">
 							<input type="checkbox" id="log-case-sensitive" onchange="fetch_system_logs();" style="margin-top: 0;"> Case Sensitive
 						</label>
 						
-						<span style="border-left: 1px solid #ddd; height: 16px; margin: 0 5px; display: inline-block; vertical-align: middle;"></span>
+						<span style="border-left: 1px solid var(--border-color); height: 16px; margin: 0 5px; display: inline-block; vertical-align: middle;"></span>
 						
-						<span style="font-weight: bold; font-size: 0.9em; color: #666;">Quick Presets:</span>
-						<button type="button" class="btn btn-xs btn-info btn-pill" onclick="apply_preset('mail', 'reject|bounced|550|554', true);">Mail Rejections</button>
-						<button type="button" class="btn btn-xs btn-info btn-pill" onclick="apply_preset('mail', 'postgrey', false);">Greylisting</button>
-						<button type="button" class="btn btn-xs btn-info btn-pill" onclick="apply_preset('mail', 'imap-login', false);">IMAP Logins</button>
-						<button type="button" class="btn btn-xs btn-info btn-pill" onclick="apply_preset('fail2ban', 'ban|unban', true);">Fail2ban Actions</button>
+						<span style="font-weight: 600; font-size: 0.9em; color: var(--text-muted);">Quick Presets:</span>
+						<button type="button" class="btn-preset" onclick="apply_preset('mail', 'reject|bounced|550|554', true);">Mail Rejections</button>
+						<button type="button" class="btn-preset" onclick="apply_preset('mail', 'postgrey', false);">Greylisting</button>
+						<button type="button" class="btn-preset" onclick="apply_preset('mail', 'imap-login', false);">IMAP Logins</button>
+						<button type="button" class="btn-preset" onclick="apply_preset('fail2ban', 'ban|unban', true);">Fail2ban Actions</button>
 					</div>
 				</div>
 			</div>
