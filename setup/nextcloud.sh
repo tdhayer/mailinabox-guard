@@ -324,7 +324,7 @@ php"$PHP_VER" <<EOF > "$CONFIG_TEMP" && mv "$CONFIG_TEMP" "$STORAGE_ROOT/ownclou
 include("$STORAGE_ROOT/owncloud/config.php");
 
 \$CONFIG['config_is_read_only'] = false;
-\$CONFIG['appstoreenabled'] = false; # https://discourse.mailinabox.email/t/problems-with-z-push-and-nextcloud-likely-after-package-updates-today/16460/21
+\$CONFIG['appstoreenabled'] = true; # disabled after app:enable; must be true here so app:enable can find locally-installed apps
 
 \$CONFIG['trusted_domains'] = array('$PRIMARY_HOSTNAME');
 
@@ -368,6 +368,11 @@ hide_output sudo -u www-data php"$PHP_VER" /usr/local/lib/owncloud/console.php a
 hide_output sudo -u www-data php"$PHP_VER" /usr/local/lib/owncloud/console.php app:enable user_external
 hide_output sudo -u www-data php"$PHP_VER" /usr/local/lib/owncloud/console.php app:enable contacts
 hide_output sudo -u www-data php"$PHP_VER" /usr/local/lib/owncloud/console.php app:enable calendar
+
+# Disable the appstore to prevent auto-updates that can break compatibility (e.g. z-push).
+# Must run AFTER app:enable: NC26 refuses to enable locally-present 3rd-party apps
+# when the appstore is disabled. See https://discourse.mailinabox.email/t/16460/21
+hide_output sudo -u www-data php"$PHP_VER" /usr/local/lib/owncloud/occ config:system:set appstoreenabled --value=false --type=boolean
 
 # When upgrading, run the upgrade script again now that apps are enabled. It seems like
 # the first upgrade at the top won't work because apps may be disabled during upgrade?

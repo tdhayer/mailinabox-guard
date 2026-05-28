@@ -46,3 +46,6 @@ release_notes.txt
 
 # Local History
 .history/
+
+# Ignore .secret-stack folder
+.secret-stack
