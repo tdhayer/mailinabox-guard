@@ -36,7 +36,7 @@ if [ -z "$(management/cli.py user)" ]; then
 		else
 			# Use me@PRIMARY_HOSTNAME
 			EMAIL_ADDR=me@$PRIMARY_HOSTNAME
-			EMAIL_PW=12345678
+			EMAIL_PW=Admin1234!Test
 			echo
 			echo "Creating a new administrative mail account for $EMAIL_ADDR with password $EMAIL_PW."
 			echo
@@ -48,7 +48,20 @@ if [ -z "$(management/cli.py user)" ]; then
 	fi
 
 	# Create the user's mail account. This will ask for a password if none was given above.
-	management/cli.py user add "$EMAIL_ADDR" ${EMAIL_PW:+"$EMAIL_PW"}
+	# Loop so the user can retry if something goes wrong (e.g. mismatched confirmation).
+	while true; do
+		if management/cli.py user add "$EMAIL_ADDR" ${EMAIL_PW:+"$EMAIL_PW"}; then
+			break
+		fi
+		# Only retry in interactive mode; in non-interactive (testing) mode, bail out.
+		if [ -n "${NONINTERACTIVE:-}" ]; then
+			echo "Failed to create mail account." >&2
+			exit 1
+		fi
+		echo
+		echo "Failed to create the mail account. Please try again."
+		echo
+	done
 
 	# Make it an admin.
 	hide_output management/cli.py user make-admin "$EMAIL_ADDR"

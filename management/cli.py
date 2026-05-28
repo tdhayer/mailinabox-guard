@@ -33,17 +33,39 @@ def mgmt(cmd, data=None, is_json=False):
 	return resp
 
 def read_password():
+    import re
+    REQUIREMENTS = [
+        ("At least 10 characters",               lambda pw: len(pw) >= 10),
+        ("At least one uppercase letter (A-Z)",  lambda pw: bool(re.search(r'[A-Z]', pw))),
+        ("At least one lowercase letter (a-z)",  lambda pw: bool(re.search(r'[a-z]', pw))),
+        ("At least one digit (0-9)",             lambda pw: bool(re.search(r'[0-9]', pw))),
+        ("At least one special character",       lambda pw: bool(re.search(r'[!@#$%^&*()_+\-=\[\]{}|;:,.<>?/~`]', pw))),
+    ]
+
+    print("\nPassword requirements:")
+    for desc, _ in REQUIREMENTS:
+        print("  • " + desc)
+    print()
+
     while True:
-        first = getpass.getpass('password: ')
-        if len(first) < 8:
-            print("Passwords must be at least eight characters.")
+        pw = getpass.getpass('Password: ')
+
+        failed = [desc for desc, check in REQUIREMENTS if not check(pw)]
+        if failed:
+            print("Password does not meet the following requirements:")
+            for desc in failed:
+                print("  ✗ " + desc)
+            print("Please try again.\n")
             continue
-        second = getpass.getpass(' (again): ')
-        if first != second:
-            print("Passwords not the same. Try again.")
+
+        pw2 = getpass.getpass('Confirm password: ')
+        if pw != pw2:
+            print("Passwords do not match. Please try again.\n")
             continue
+
         break
-    return first
+
+    return pw
 
 def setup_key_auth(mgmt_uri):
 	with open('/var/lib/mailinabox/api.key', encoding='utf-8') as f:
