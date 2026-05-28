@@ -48,6 +48,13 @@ jobs:
       - name: Compile Python files
         run: python -m py_compile $(find . -name "*.py" -not -path "*/.venv/*" -not -path "./tools/mail.py")
 
+      - name: Install test dependencies
+        run: |
+          pip install pytest rtyaml "email_validator>=1.0.0" flask dnspython python-dateutil expiringdict "qrcode[pil]" pyotp "webauthn>=2.7.0" "cbor2<6.0.0" "idna>=2.0.0" "cryptography>=44.0.2" psutil b2sdk boto3
+
+      - name: Run unit tests
+        run: python -m pytest
+
   publish-release:
     name: Publish GitHub Release
     needs: validate-and-test

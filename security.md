@@ -2,7 +2,7 @@
 
 Mail-in-a-Box Guard turns a fresh Ubuntu 22.04 LTS 64-bit machine into a secure mail server appliance by installing and configuring various components.
 
-This page documents the security posture of Mail-in-a-Box Guard. The term “box” is used below to mean a configured Mail-in-a-Box Guard server.
+This page documents the security posture of Mail-in-a-Box Guard. The term "box" is used below to mean a configured Mail-in-a-Box Guard server.
 
 ---
 
@@ -54,9 +54,36 @@ Mail-in-a-Box Guard includes built-in MFA controls to protect the administration
 * **Standard TOTP**: Support for standard time-based one-time passcodes (like Google Authenticator or Authy) as a secondary fallback.
 * **Login Security**: Password changes or modifications to MFA configurations immediately expire all other active admin login sessions.
 
+### Password Policy
+
+Mail-in-a-Box Guard enforces a modern password complexity policy for all user accounts:
+
+* Minimum **10 characters** in length.
+* At least **one uppercase** letter, **one lowercase** letter, **one digit**, and **one special character**.
+* Passwords are validated server-side at creation and change time. Existing user passwords are not retroactively affected.
+* The control panel provides a real-time floating checklist popover showing each requirement as the user types.
+* A cryptographically secure password generator (using `crypto.getRandomValues()`) is available inline with one-click apply functionality.
+
 ### Password Storage
 
 The passwords for mail users are stored on disk using the [SHA512-CRYPT](http://man7.org/linux/man-pages/man3/crypt.3.html) hashing scheme.
+
+### Session Management
+
+Admin control panel sessions include idle timeout protection:
+
+* Sessions expire after **30 minutes** of inactivity. Each authenticated API request resets the idle timer.
+* A visual countdown toast warns users **5 minutes** before session expiry, with a "Stay logged in" option that extends the session.
+* On expiry, sessions are cleanly terminated and stored credentials are cleared.
+* The absolute session lifetime (2 days via `ExpiringDict`) remains as the maximum session duration regardless of activity.
+
+### Admin Action Audit Trail
+
+All state-mutating administrative operations are logged to a SQLite database (`STORAGE_ROOT/admin/audit.sqlite`):
+
+* **Tracked actions**: User management (add/remove/password change/privilege change/quota change), alias management, DNS updates, SSL operations, spam configuration changes, system operations (reboot, backup config, privacy settings, postfix config, mail queue), and security actions (fail2ban ban/unban, MFA enable/disable).
+* **Logged data**: Timestamp (UTC ISO 8601), administrator email, action type, target entity, and optional details.
+* **Access**: Viewable via a paginated, filterable panel in the Logs section of the control panel. Filterable by category (Users, Aliases, Spam, DNS, SSL, System, Security).
 
 ### Console Access
 
@@ -69,6 +96,28 @@ Console access (via SSH) is configured by the system image used to create the bo
 The following services are protected: SSH, IMAP (Dovecot), SMTP submission (Postfix), webmail (Roundcube), Nextcloud/CalDAV/CardDAV, and the Mail-in-a-Box Guard control panel.
 
 Administrators can view Fail2ban statistics, inspect active jail lists, and manually ban/unban IP addresses directly within the control panel.
+
+---
+
+## Web Application Security
+
+### Cross-Site Scripting (XSS) Protection
+
+All user-controlled data (email addresses, quota values, connection metadata) is sanitized before injection into HTML using a global `escapeHtml()` helper function. This applies to:
+
+* Modal confirmation dialogs in user management
+* Active connections table in the dashboard
+* Audit trail display in the logs panel
+
+### Content Security Policy (CSP)
+
+The box sets a comprehensive Content-Security-Policy header on all admin panel responses:
+
+```
+default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; frame-ancestors 'none';
+```
+
+This restricts resource loading to the local server and the Google Fonts CDN, blocks clickjacking via `frame-ancestors 'none'`, and prevents loading of external scripts or stylesheets from unauthorized origins.
 
 ---
 
@@ -106,6 +155,9 @@ When DNSSEC is enabled at the box's domain name's registrar, DANE TLSA records a
 
 ### Filters & Spam Control
 Incoming mail is filtered to reject spam and malicious content:
-* Senders are blocked if listed in the Spamhaus Zen blacklist or the Spamhaus Domain Block List (DBL).
-* Greylisting (with [postgrey](http://postgrey.schweikert.ch/)) is used to delay and reduce automated spam.
-* Administrators can tune spam thresholds and greylisting delays from the admin panel to adjust edge rejection behavior.
+
+* Senders are blocked if listed in the Spamhaus Zen blacklist or the Spamhaus Domain Block List (DBL). Optional Zero Reputation Domain (ZRD) blocking is available for newly registered domains.
+* Administrators can configure a [Spamhaus DQS](https://www.spamhaus.com/product/data-query-service/) API key for enhanced blocklist queries that bypass public DNS resolver limitations.
+* Greylisting (with [postgrey](http://postgrey.schweikert.ch/)) is used to delay and reduce automated spam. Delay duration is configurable.
+* SpamAssassin scoring thresholds are tunable from the admin panel (range 1.0–10.0).
+* Administrators can manage SpamAssassin whitelists and blacklists, Postgrey bypass lists, and Postfix blocked sender lists directly from the control panel.

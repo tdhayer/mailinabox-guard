@@ -43,7 +43,48 @@ Once inside the VM, you can re-run individual parts of the setup:
 
 ### Tests
 
+The project includes a comprehensive unit test suite under the `tests/` directory. Tests are configured in `pyproject.toml` and run via pytest.
+
+**Running tests locally:**
+
+```bash
+# Install test dependencies
+pip install pytest rtyaml "email_validator>=1.0.0" flask dnspython python-dateutil \
+    expiringdict "qrcode[pil]" pyotp "webauthn>=2.7.0" "cbor2<6.0.0" \
+    "idna>=2.0.0" "cryptography>=44.0.2" psutil b2sdk boto3
+
+# Run the full test suite
+python -m pytest
+```
+
+**Current test files:**
+
+| File | Coverage |
+|---|---|
+| `test_dashboard_apis.py` | API endpoints, spam settings, session idle status |
+| `test_status_checks.py` | System status check logic |
+| `test_mfa.py` | TOTP and WebAuthn multi-factor authentication |
+| `test_dmarc_alerts.py` | DMARC alert processing |
+| `test_password_policy.py` | Password complexity validation rules |
+| `test_audit.py` | Audit log writes, reads, pagination, category filtering |
+| `test_spam_config_path.py` | Dynamic editconf.py path resolution |
+
 Writing and contributing tests is a great start if you are looking for a way to help improve codebase stability.
+
+### CI/CD Pipeline
+
+Every push and pull request to `main` triggers the following automated checks:
+
+* **Ruff** — Python lint and format checks
+* **ShellCheck** — Bash script analysis for `setup/` and `management/`
+* **Python syntax matrix** — Compilation across Python 3.10, 3.11, 3.12, and 3.13
+* **pytest** — Full unit test suite
+* **Bandit** — Static security analysis for common vulnerabilities
+* **pip-audit** — Dependency vulnerability scanning
+* **CodeQL** — GitHub's advanced code analysis (also runs weekly)
+* **Version sync** — Validates consistency across `VERSION`, `CHANGELOG.md`, and `bootstrap.sh`
+
+All checks must pass before merging to `main`. Tagged releases (`v*`) trigger an additional release pipeline that re-runs the full quality gate and publishes a GitHub Release with auto-extracted changelog notes.
 
 ## Public Domain Waiver
 

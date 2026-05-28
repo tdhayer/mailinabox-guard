@@ -1,13 +1,39 @@
 CHANGELOG
 =========
 
-Version 76-guard (May 26, 2026)
+Version 76-guard (May 28, 2026)
 -------------------------------
 
-Mail-in-a-Box Guard release updated to upstream Version 76.
+Mail-in-a-Box Guard release updated to upstream Version 76. This release adds comprehensive security hardening, admin audit capabilities, and significant UX improvements to the control panel.
 
-* Style: Modernized admin status panel and aliases UI.
-* Hardening: Restricted SMTP TLS protocols to TLSv1.2 and TLSv1.3 only.
+Security & Hardening:
+
+* Password Policy Upgrade: Enforced minimum 10-character passwords requiring uppercase, lowercase, digit, and special character. Replaced `Math.random()` password generator with `crypto.getRandomValues()` for cryptographically secure output.
+* XSS Hardening: Sanitized all user-controlled data injected into HTML modals and dashboard tables. Promoted `escapeHtml()` to global scope for consistent use across all templates.
+* Content Security Policy: Expanded the CSP header from minimal `frame-ancestors 'none'` to a comprehensive policy restricting script, style, font, and image sources.
+* Idle Session Timeout: Admin sessions now expire after 30 minutes of inactivity. A visual countdown toast warns users 5 minutes before expiry with a "Stay logged in" option.
+* Admin Action Audit Trail: All state-mutating admin operations (user/alias/DNS/SSL/spam/system changes) are now logged to a SQLite database with full actor, action, target, and timestamp tracking. Viewable via a paginated, filterable UI in the Logs panel.
+
+Spam & Filtering:
+
+* Spamhaus DQS Integration: Added support for Spamhaus Data Query Service API keys with per-list toggles for ZEN, DBL, and ZRD blocklists.
+* Whitelist/Blacklist Management: Added full CRUD management for SpamAssassin whitelists and blacklists, Postgrey bypass lists, and Postfix blocked senders directly from the control panel.
+* Spam Settings UX: Added loading spinner and input disabling during spam settings save to prevent double-submissions during service restarts.
+* Dynamic editconf.py Resolution: Fixed spam threshold save failures in development environments by dynamically locating `editconf.py` across production and dev paths.
+
+Control Panel UX:
+
+* Password Requirements Checklist: Real-time floating popover showing each password requirement with live check/uncheck as the user types.
+* Interactive Password Generator: Inline generator card with secure roll, clipboard copy, and one-click apply functionality for both Add User and Set Password flows.
+* User List Domain Grouping: Users are now organized by domain with collapsible headers and a domain filter dropdown.
+* Logs Preset Redesign: Replaced generic Bootstrap pills with custom-themed outlined/filled preset buttons with dark mode support.
+
+CI/CD & Quality:
+
+* Automated Quality Gate: Added CI pipeline with Ruff lint/format, ShellCheck, Python syntax matrix (3.10–3.13), and pytest on every push and PR.
+* Security Scanning: Automated Bandit static analysis, pip-audit dependency vulnerability scanning, and CodeQL advanced analysis.
+* Release Pipeline: Tag-triggered workflow with version sync validation, full quality gate re-run, and automated GitHub Release publishing with changelog extraction.
+* Version Synchronization: Added `version_sync_check.py` tool enforcing consistency across `VERSION`, `CHANGELOG.md`, and `bootstrap.sh` TAG.
 
 Version 76 (May 24, 2026)
 -------------------------

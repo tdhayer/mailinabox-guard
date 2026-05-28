@@ -23,16 +23,35 @@ Mail-in-a-Box Guard expands on the original ease-of-use philosophy by providing 
 * **Fail2ban GUI**: View active jails, jail health status, and real-time ban counters.
 * **Active Blocking Controls**: Directly inspect lists of banned IP addresses, and manually ban or unban addresses with a single click in the UI.
 
-### 4. Unified System Log Viewer
+### 4. Unified System Log Viewer & Admin Audit Trail
 * **Secure Console Interface**: Read system logs (syslog, mail logs, nginx logs, and fail2ban logs) directly from the control panel.
 * **Interactive Search**: Search, filter, and paginate through log entries in reverse chronological order for swift debugging.
+* **Admin Action Audit Trail**: Every administrative action (user/alias/DNS/SSL/spam/system changes) is logged to a SQLite database with full actor, action, target, and timestamp tracking. Viewable via a paginated, filterable panel.
 
-### 5. Outbound Delivery Preference (IPv4/IPv6 Toggles)
+### 5. Password Hardening & Interactive Generator
+* **Enforced Complexity Policy**: Minimum 10 characters with uppercase, lowercase, digit, and special character requirements.
+* **Real-Time Checklist**: A floating popover shows each requirement with live check/uncheck as the user types.
+* **Secure Password Generator**: Cryptographically secure password generation using `crypto.getRandomValues()` with one-click apply, clipboard copy, and re-roll functionality.
+* **Client-Side Strength Meter**: Color-coded bar (red → orange → yellow → green) with strength category labels.
+
+### 6. Session Security
+* **Idle Session Timeout**: Admin sessions expire after 30 minutes of inactivity.
+* **Visual Countdown Warning**: A toast notification warns users 5 minutes before expiry with a "Stay logged in" option.
+* **Automatic Logout**: Sessions are cleanly terminated on expiry with credential cleanup.
+
+### 7. Edge Spam Controls
+* **Granular Spam Tuning**: Manage greylisting settings, modify greylisting delays, and customize SpamAssassin score thresholds.
+* **Spamhaus DQS Integration**: Configure Spamhaus Data Query Service API keys with per-list toggles for ZEN, DBL, and ZRD blocklists.
+* **Whitelist/Blacklist Management**: Full CRUD management for SpamAssassin whitelists and blacklists, Postgrey bypass lists, and Postfix blocked senders.
+
+### 8. Outbound Delivery Preference (IPv4/IPv6 Toggles)
 * **Network Bindings**: Toggle Postfix preference to prefer or force IPv4/IPv6 for outgoing mail.
 * **Delivery Routing**: Easily route outbound mail to bypass aggressive IPv6 spam blacklists on cloud VPS networks.
 
-### 6. Edge Spam Controls
-* **Granular Spam tuning**: Manage greylisting settings, modify greylisting delays, and customize SpamAssassin score thresholds to dynamically tune spam rejection rates.
+### 9. Security Hardening
+* **XSS Protection**: All user-controlled data is sanitized before HTML injection with a global `escapeHtml()` helper.
+* **Content Security Policy**: Comprehensive CSP header restricting script, style, font, and image sources.
+* **TLS Hardening**: SMTP TLS protocols restricted to TLSv1.2 and TLSv1.3 only.
 
 ---
 
@@ -53,20 +72,40 @@ Mail-in-a-Box Guard configures a fresh Ubuntu 22.04 LTS 64-bit machine into a ha
 
 See the setup guide on the original [Mail-in-a-Box website](https://mailinabox.email/guide.html) for general prerequisites.
 
-Start with a completely fresh, vanilla **Ubuntu 22.04 LTS 64-bit** server. On the server:
+Start with a completely fresh, vanilla **Ubuntu 22.04 LTS 64-bit** server.
 
-1. Clone this fork repository:
-   ```bash
-   git clone https://github.com/tdhayer/mailinabox-guard.git
-   cd mailinabox-guard
-   ```
+**Quick Install** (downloads and runs the latest tagged release):
 
-2. Run the interactive setup:
-   ```bash
-   sudo setup/start.sh
-   ```
+```bash
+curl -s https://raw.githubusercontent.com/tdhayer/mailinabox-guard/main/setup/bootstrap.sh | sudo bash
+```
+
+**Manual Install** (clone and run directly):
+
+```bash
+git clone https://github.com/tdhayer/mailinabox-guard.git
+cd mailinabox-guard
+sudo setup/start.sh
+```
 
 The script will automatically install necessary packages, configure services, and establish the administration daemon.
+
+---
+
+## CI/CD & Quality
+
+Every push and pull request to `main` runs through an automated quality gate:
+
+* **Ruff** lint and format checks for Python code
+* **ShellCheck** for bash script analysis
+* **Python syntax matrix** compilation across Python 3.10–3.13
+* **pytest** unit test suite
+* **Bandit** static security analysis
+* **pip-audit** dependency vulnerability scanning
+* **CodeQL** advanced code analysis (weekly scheduled + on push)
+* **Version sync validation** across `VERSION`, `CHANGELOG.md`, and `bootstrap.sh`
+
+Tagged releases (`v*`) trigger an additional release pipeline that re-runs the full quality gate, validates the tag matches the codebase version, extracts release notes from the changelog, and publishes a GitHub Release.
 
 ---
 

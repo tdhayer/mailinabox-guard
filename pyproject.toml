@@ -84,7 +84,8 @@ python_files = [
     "test_mfa.py",
     "test_dmarc_alerts.py",
     "test_password_policy.py",
-    "test_audit.py"
+    "test_audit.py",
+    "test_spam_config_path.py"
 ]
 
 
