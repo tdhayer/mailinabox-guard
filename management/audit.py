@@ -25,6 +25,7 @@ def _get_db(env):
     return conn
 
 def log_admin_action(email, action, target, details, env):
+    email = email or "system (API)"
     conn = _get_db(env)
     try:
         c = conn.cursor()
