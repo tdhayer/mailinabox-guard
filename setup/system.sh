@@ -15,6 +15,13 @@ source setup/functions.sh # load our functions
 echo "$PRIMARY_HOSTNAME" > /etc/hostname
 hostname "$PRIMARY_HOSTNAME"
 
+# Ensure the hostname is resolvable locally to prevent 'sudo: unable to resolve host'
+# errors and DNS timeouts when the machine tries to query its own name before DNS is fully live.
+if ! grep -q "$PRIMARY_HOSTNAME" /etc/hosts; then
+	# Add the primary hostname to the IPv4 localhost line
+	sed -i "s/^127\.0\.0\.1.*/& $PRIMARY_HOSTNAME/" /etc/hosts
+fi
+
 # ### Fix permissions
 
 # The default Ubuntu Bionic image on Scaleway throws warnings during setup about incorrect
