@@ -194,6 +194,9 @@ if [ -z "${STORAGE_ROOT:-}" ]; then
 	STORAGE_ROOT=$([[ -z "${DEFAULT_STORAGE_ROOT:-}" ]] && echo "/home/$STORAGE_USER" || echo "$DEFAULT_STORAGE_ROOT")
 fi
 
+# Clear the screen to remove residual dialog boxes before printing standard text
+clear
+
 # Show the configuration, since the user may have not entered it manually.
 echo
 echo "Primary Hostname: $PRIMARY_HOSTNAME"
