@@ -76,16 +76,15 @@ fi
 # Change directory to it.
 cd "$HOME/mailinabox" || exit
 
-# Update it.
-if [ "$TAG" != "$(git describe --tags --always)" ]; then
-	echo "Updating Mail-in-a-Box to $TAG . . ."
-	git fetch --depth 1 --force --prune origin tag "$TAG"
-	if ! git checkout -q "$TAG"; then
-		echo "Update failed. Did you modify something in $PWD?"
-		exit 1
-	fi
-	echo
+# Update it. Always re-fetch the tag so that force-pushed tags (moved to a
+# new commit) are picked up — comparing tag names alone would miss this.
+echo "Updating Mail-in-a-Box to $TAG . . ."
+git fetch --depth 1 --force --prune origin tag "$TAG"
+if ! git checkout -q "$TAG"; then
+	echo "Update failed. Did you modify something in $PWD?"
+	exit 1
 fi
+echo
 
 # Start setup script.
 setup/start.sh
