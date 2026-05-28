@@ -107,10 +107,12 @@ InstallNextcloud() {
 
 	wget_verify "https://github.com/nextcloud-releases/contacts/archive/refs/tags/v$version_contacts.tar.gz" "$hash_contacts" /tmp/contacts.tgz
 	tar xf /tmp/contacts.tgz -C /usr/local/lib/owncloud/apps/
+	mv /usr/local/lib/owncloud/apps/contacts-* /usr/local/lib/owncloud/apps/contacts
 	rm /tmp/contacts.tgz
 
 	wget_verify "https://github.com/nextcloud-releases/calendar/archive/refs/tags/v$version_calendar.tar.gz" "$hash_calendar" /tmp/calendar.tgz
 	tar xf /tmp/calendar.tgz -C /usr/local/lib/owncloud/apps/
+	mv /usr/local/lib/owncloud/apps/calendar-* /usr/local/lib/owncloud/apps/calendar
 	rm /tmp/calendar.tgz
 
 	# Starting with Nextcloud 15, the app user_external is no longer included in Nextcloud core,
