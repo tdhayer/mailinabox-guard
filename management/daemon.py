@@ -1525,8 +1525,9 @@ def spam_dmarc_stats_api():
 		import gzip, zipfile, glob
 		try:
 			from defusedxml import ElementTree as safe_et
-		except Exception:
-			import xml.etree.ElementTree as safe_et
+		except Exception as e:
+			app.logger.warning("defusedxml is unavailable; skipping DMARC XML report parsing: %s", e)
+			safe_et = None
 		
 		now = time.time()
 		thirty_days_ago = now - 30 * 86400
@@ -1538,6 +1539,8 @@ def spam_dmarc_stats_api():
 		files = [f for f in files if os.path.getmtime(f) >= thirty_days_ago]
 		
 		for fpath in files:
+			if safe_et is None:
+				break
 			try:
 				content = None
 				if fpath.endswith(".gz") or fpath.endswith(".xml.gz"):
