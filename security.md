@@ -6,9 +6,39 @@ This page documents the security posture of Mail-in-a-Box Guard. The term "box" 
 
 ---
 
+## Supported Versions
+
+Security fixes are applied to the active Guard release line for Ubuntu 22.04.
+
+Older tags may remain available for compatibility, but they may not receive the same security update cadence.
+
+For the best security posture, run the latest tagged Guard release and keep setup reruns current.
+
+---
+
 ## Reporting Security Vulnerabilities
 
 Security vulnerabilities should be reported directly to the project maintainer [@tdhayer](https://github.com/tdhayer) or by opening a GitHub Security Advisory on the [repository security tab](https://github.com/tdhayer/mailinabox-guard/security).
+
+When reporting, include:
+
+* Affected version/tag
+* Reproduction steps or proof-of-concept
+* Potential impact and scope
+* Any suggested mitigation if known
+
+Public disclosure should wait until a fix or mitigation is available.
+
+## Vulnerability Handling Process
+
+The project aims to:
+
+* Acknowledge new reports promptly
+* Validate and triage severity
+* Prepare and test a fix
+* Publish release notes with remediation details
+
+Time-to-fix depends on severity, exploitability, and upstream dependency constraints.
 
 ---
 
@@ -111,13 +141,14 @@ All user-controlled data (email addresses, quota values, connection metadata) is
 
 ### Content Security Policy (CSP)
 
-The box sets a comprehensive Content-Security-Policy header on all admin panel responses:
+The box sets a hardened Content-Security-Policy header on admin panel responses, and also emits a stricter report-only policy during migration away from inline script allowances.
 
-```
-default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; frame-ancestors 'none';
+```text
+Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';
+Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';
 ```
 
-This restricts resource loading to the local server and the Google Fonts CDN, blocks clickjacking via `frame-ancestors 'none'`, and prevents loading of external scripts or stylesheets from unauthorized origins.
+This constrains resource loading to approved sources, blocks framing, and provides visibility into inline-script dependencies before stricter enforcement is enabled.
 
 ---
 
@@ -126,18 +157,23 @@ This restricts resource loading to the local server and the Google Fonts CDN, bl
 Email delivery protocols were not originally designed for secure networks. Mail-in-a-Box Guard uses modern extensions to secure outbound deliveries:
 
 ### DNSSEC
+
 The first step in resolving the destination server for an email address is performing a DNS look-up for the MX record of the domain name. The box uses a locally-running DNSSEC-aware nameserver to perform the lookup. If the domain name has DNSSEC enabled, DNSSEC guards against DNS records being tampered with.
 
 ### Encryption
+
 The box uses opportunistic encryption, meaning mail is encrypted in transit and protected from passive eavesdropping. Modern encryption settings (TLSv1.2 and later) are used to the extent the recipient server supports them.
 
 ### DANE
+
 If the recipient's domain name supports DNSSEC and has published a [DANE TLSA](https://en.wikipedia.org/wiki/DNS-based_Authentication_of_Named_Entities) record, then on-the-wire encryption is forced between the box and the recipient MTA. The TLSA record contains a certificate fingerprint which the receiving MTA (server) must present to the box.
 
 ### Domain Policy Records
+
 Domain policy records allow recipient MTAs to detect when the sender address domain is spoofed. All outbound mail is signed with [DKIM](https://en.wikipedia.org/wiki/DomainKeys_Identified_Mail) and "quarantine" [DMARC](https://en.wikipedia.org/wiki/DMARC) records are automatically set in DNS, along with strong [SPF](https://en.wikipedia.org/wiki/Sender_Policy_Framework) records.
 
 ### User Policy
+
 The box restricts the envelope sender address (MAIL FROM address) that users may put into outbound mail. The envelope sender address must be either their own email address or an alias that they are listed as a permitted sender of.
 
 ---
@@ -145,15 +181,19 @@ The box restricts the envelope sender address (MAIL FROM address) that users may
 ## Incoming Mail Filtering
 
 ### Encryption Settings
+
 As with outbound email, there is no way to require on-the-wire encryption of incoming mail from all senders. The box offers encryption (STARTTLS) but cannot require it. To give senders the best chance at making use of encryption, the box offers protocols back to TLSv1 and ciphers with key lengths as low as 112 bits. Modern clients will make use of the 256-bit ciphers and Diffie-Hellman ciphers with a 2048-bit key for perfect forward secrecy.
 
 ### MTA-STS
+
 The box publishes a SMTP MTA Strict Transport Security ([SMTP MTA-STS](https://en.wikipedia.org/wiki/Simple_Mail_Transfer_Protocol#SMTP_MTA_Strict_Transport_Security)) policy (via DNS and HTTPS) in "enforce" mode. Senders that support MTA-STS will use a secure SMTP connection.
 
-### DANE
+### DANE For Inbound Delivery
+
 When DNSSEC is enabled at the box's domain name's registrar, DANE TLSA records are automatically published in DNS. Senders supporting DANE will enforce encryption on-the-wire between them and the box.
 
 ### Filters & Spam Control
+
 Incoming mail is filtered to reject spam and malicious content:
 
 * Senders are blocked if listed in the Spamhaus Zen blacklist or the Spamhaus Domain Block List (DBL). Optional Zero Reputation Domain (ZRD) blocking is available for newly registered domains.

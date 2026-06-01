@@ -1,6 +1,34 @@
 CHANGELOG
 =========
 
+Version 76.1-guard (June 1, 2026)
+---------------------------------
+
+This release focuses on documentation standardization, safer upgrade behavior, and post-release hardening follow-through.
+
+Documentation and project standards:
+
+* Documentation sweep completed across README, contribution, and security guides.
+* Installation and upgrade paths are now explicitly documented for both clean installs and upstream-to-Guard migrations.
+* Added clearer release/version synchronization guidance for maintainers.
+
+Upgrade and bootstrap safety:
+
+* Bootstrap migration preflight now handles existing upstream-origin repositories by switching origin to Guard when the target Guard tag is unavailable.
+* Existing origin is preserved as `upstream` during migration to maintain traceability.
+* Added guard rails for non-git directories at `$HOME/mailinabox` to prevent ambiguous upgrade behavior.
+
+Security and reliability updates:
+
+* DMARC XML parsing now requires `defusedxml`; insecure stdlib fallback removed.
+* Added DMARC parsing safeguards (size limits and parser failure handling) and dependency propagation in setup and CI workflows.
+* Added stricter CSP policy in report-only mode to support staged migration away from inline script allowances.
+
+Quality gates:
+
+* Added core Ruff gate (`F,E9`) for management and tests in CI and release workflows.
+* Updated pytest discovery behavior while explicitly ignoring script-style files that are not pytest-compatible.
+
 Version 76-guard (May 28, 2026)
 -------------------------------
 

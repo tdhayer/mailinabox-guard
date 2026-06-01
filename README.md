@@ -1,86 +1,50 @@
 # Mail-in-a-Box Guard
 
-A security-focused, modernized fork of the open-source [Mail-in-a-Box](https://github.com/mail-in-a-box/mailinabox) project, designed for administrators who need advanced edge controls, unified logs, active firewall integration, and hardened hardware authentication.
+Mail-in-a-Box Guard is a security-focused fork of [Mail-in-a-Box](https://github.com/mail-in-a-box/mailinabox), maintained for operators who want stronger admin hardening, richer operational telemetry, and safer default workflows while retaining the original all-in-one mail server model.
 
-Original project by [@JoshData](https://github.com/JoshData) and [contributors](https://github.com/mail-in-a-box/mailinabox/graphs/contributors). Fork maintained by [@tdhayer](https://github.com/tdhayer).
+Original project by [@JoshData](https://github.com/JoshData) and [contributors](https://github.com/mail-in-a-box/mailinabox/graphs/contributors). Guard fork maintained by [@tdhayer](https://github.com/tdhayer).
 
----
+## Project Scope
 
-## Key Enhancements & Features
+Mail-in-a-Box Guard is optimized for single-node deployments and straightforward operations.
 
-Mail-in-a-Box Guard expands on the original ease-of-use philosophy by providing enterprise-grade system visibility and defense-in-depth directly from the control panel:
+It is not positioned as a high-availability or horizontally scaled mail platform.
 
-### 1. Hardened Multi-Factor Authentication (MFA)
-* **YubiKey & Passkey (WebAuthn) Support**: Go beyond standard passwords. Register hardware security keys or built-in biometric authenticators directly in the administration panel.
-* **Fallback Options**: Configure standard TOTP (Time-based One-Time Passwords) as a backup method.
+## What Guard Adds
 
-### 2. Live Admin Dashboard & System Telemetry
-* **Realtime Metrics**: Instant overview of CPU, memory, and disk usage.
-* **Mail Queue Monitor**: Track pending outbound deliveries with queue counter gauges.
-* **Interactive Traffic Flow Charts**: Visual charts mapping out received, sent, and blocked mail counts over time, built with Chart.js.
+Guard builds on upstream Mail-in-a-Box with additional controls and visibility, including:
 
-### 3. Integrated Firewall & Intrusion Prevention
-* **Fail2ban GUI**: View active jails, jail health status, and real-time ban counters.
-* **Active Blocking Controls**: Directly inspect lists of banned IP addresses, and manually ban or unban addresses with a single click in the UI.
+* Hardened MFA with TOTP and WebAuthn (passkeys/security keys)
+* Admin dashboard telemetry for queue, traffic, and system health
+* Integrated fail2ban controls and security-focused status checks
+* Unified logs view plus administrative audit trail
+* Password policy enforcement and secure password generation
+* Session idle timeout with warning flow and cleanup behavior
+* Expanded spam controls (Spamhaus DQS, list management, tuning)
+* DMARC and spam dashboard analytics for operational review
 
-### 4. Unified System Log Viewer & Admin Audit Trail
-* **Secure Console Interface**: Read system logs (syslog, mail logs, nginx logs, and fail2ban logs) directly from the control panel.
-* **Interactive Search**: Search, filter, and paginate through log entries in reverse chronological order for swift debugging.
-* **Admin Action Audit Trail**: Every administrative action (user/alias/DNS/SSL/spam/system changes) is logged to a SQLite database with full actor, action, target, and timestamp tracking. Viewable via a paginated, filterable panel.
+## Platform Support
 
-### 5. Password Hardening & Interactive Generator
-* **Enforced Complexity Policy**: Minimum 10 characters with uppercase, lowercase, digit, and special character requirements.
-* **Real-Time Checklist**: A floating popover shows each requirement with live check/uncheck as the user types.
-* **Secure Password Generator**: Cryptographically secure password generation using `crypto.getRandomValues()` with one-click apply, clipboard copy, and re-roll functionality.
-* **Client-Side Strength Meter**: Color-coded bar (red → orange → yellow → green) with strength category labels.
+### Active support
 
-### 6. Session Security
-* **Idle Session Timeout**: Admin sessions expire after 30 minutes of inactivity.
-* **Visual Countdown Warning**: A toast notification warns users 5 minutes before expiry with a "Stay logged in" option.
-* **Automatic Logout**: Sessions are cleanly terminated on expiry with credential cleanup.
+* Ubuntu 22.04 LTS (64-bit)
 
-### 7. Edge Spam Controls
-* **Granular Spam Tuning**: Manage greylisting settings, modify greylisting delays, and customize SpamAssassin score thresholds.
-* **Spamhaus DQS Integration**: Configure Spamhaus Data Query Service API keys with per-list toggles for ZEN, DBL, and ZRD blocklists.
-* **Whitelist/Blacklist Management**: Full CRUD management for SpamAssassin whitelists and blacklists, Postgrey bypass lists, and Postfix blocked senders.
+### Legacy compatibility tags
 
-### 8. Outbound Delivery Preference (IPv4/IPv6 Toggles)
-* **Network Bindings**: Toggle Postfix preference to prefer or force IPv4/IPv6 for outgoing mail.
-* **Delivery Routing**: Easily route outbound mail to bypass aggressive IPv6 spam blacklists on cloud VPS networks.
-
-### 9. Security Hardening
-* **XSS Protection**: All user-controlled data is sanitized before HTML injection with a global `escapeHtml()` helper.
-* **Content Security Policy**: Comprehensive CSP header restricting script, style, font, and image sources.
-* **TLS Hardening**: SMTP TLS protocols restricted to TLSv1.2 and TLSv1.3 only.
-
----
-
-## In The Box
-
-Mail-in-a-Box Guard configures a fresh Ubuntu 22.04 LTS 64-bit machine into a hardened mail appliance:
-
-* **SMTP** ([Postfix](http://www.postfix.org/)), **IMAP** ([Dovecot](http://dovecot.org/)), **CardDAV/CalDAV** ([Nextcloud](https://nextcloud.com/)), and **Exchange ActiveSync** ([z-push](http://z-push.org/))
-* **Webmail** ([Roundcube](http://roundcube.net/)) with mail filtering rules and autoconfiguration profiles served by [Nginx](http://nginx.org/)
-* **Spam Protection**: [SpamAssassin](https://spamassassin.apache.org/) and greylisting via [Postgrey](http://postgrey.schweikert.ch/)
-* **DNS Server** ([nsd4](https://www.nlnetlabs.nl/projects/nsd/)) with automatic SPF, DKIM ([OpenDKIM](http://www.opendkim.org/)), DMARC, DNSSEC, DANE TLSA, MTA-STS, and SSHFP policy records
-* **TLS Certificates**: Automatically generated and renewed via [Let's Encrypt](https://letsencrypt.org/)
-* **Backups** ([Duplicity](http://duplicity.nongnu.org/)), firewall ([ufw](https://launchpad.net/ufw)), intrusion prevention ([fail2ban](http://www.fail2ban.org/)), and system status reporting
-
----
+* Ubuntu 18.04 LTS remains tag-compatible with older branches only
+* Ubuntu 14.04 LTS is no longer supported
 
 ## Installation
 
-See the setup guide on the original [Mail-in-a-Box website](https://mailinabox.email/guide.html) for general prerequisites.
+Review baseline prerequisites in the original [Mail-in-a-Box guide](https://mailinabox.email/guide.html), then use one of the methods below.
 
-Start with a completely fresh, vanilla **Ubuntu 22.04 LTS 64-bit** server.
-
-**Quick Install** (downloads and runs the latest tagged release):
+### Quick install (recommended)
 
 ```bash
 curl -s https://raw.githubusercontent.com/tdhayer/mailinabox-guard/main/setup/bootstrap.sh | sudo bash
 ```
 
-**Manual Install** (clone and run directly):
+### Manual install
 
 ```bash
 git clone https://github.com/tdhayer/mailinabox-guard.git
@@ -88,37 +52,73 @@ cd mailinabox-guard
 sudo setup/start.sh
 ```
 
-The script will automatically install necessary packages, configure services, and establish the administration daemon.
+## Upgrade Paths
 
----
+### Existing Guard installation
 
-## CI/CD & Quality
+Run the same bootstrap command. The script fetches the latest supported tag and re-runs setup safely for in-place upgrades.
 
-Every push and pull request to `main` runs through an automated quality gate:
+### Existing upstream Mail-in-a-Box installation
 
-* **Ruff** lint and format checks for Python code
-* **ShellCheck** for bash script analysis
-* **Python syntax matrix** compilation across Python 3.10–3.13
-* **pytest** unit test suite
-* **Bandit** static security analysis
-* **pip-audit** dependency vulnerability scanning
-* **CodeQL** advanced code analysis (weekly scheduled + on push)
-* **Version sync validation** across `VERSION`, `CHANGELOG.md`, and `bootstrap.sh`
+Bootstrap now includes migration preflight logic:
 
-Tagged releases (`v*`) trigger an additional release pipeline that re-runs the full quality gate, validates the tag matches the codebase version, extracts release notes from the changelog, and publishes a GitHub Release.
+* If the current repository origin does not contain the target Guard tag, bootstrap switches origin to the Guard repository
+* The previous origin is preserved as `upstream`
+* Setup then continues with the requested Guard release tag
 
----
+For safety, take a snapshot/backup before any in-place upgrade.
 
-## Support & Contributing
+## Components In The Box
 
-* **Bugs & Issues**: Please report issues specific to the Guard edition on the [GitHub Issues](https://github.com/tdhayer/mailinabox-guard/issues) page.
-* **Contributing**: Development takes place on GitHub. Check out the [Contributing Guidelines](CONTRIBUTING.md) to get started.
+A fresh Ubuntu 22.04 host is configured as a full mail appliance, including:
 
----
+* Postfix (SMTP), Dovecot (IMAP/POP), Roundcube (webmail)
+* Nextcloud (CardDAV/CalDAV) and Z-Push (ActiveSync)
+* NSD with SPF, DKIM, DMARC, DNSSEC, DANE TLSA, MTA-STS, and SSHFP support
+* Automated TLS with Let's Encrypt
+* SpamAssassin, Postgrey, fail2ban, UFW, and backup services
 
-## License & History
+## Operations And Validation
 
-This project is in the public domain and is dedicated to the public domain through the [CC0 1.0 Universal Waiver](LICENSE). 
+After install or upgrade:
 
-### Acknowledgements
-This project is built upon the wonderful foundation of [Mail-in-a-Box](https://github.com/mail-in-a-box/mailinabox) by Josh Tauberer, inspired by Alex Payne's Sovereign and Drew Crawford's "NSA-proof your email in 2 hours" guide.
+1. Sign in to the admin UI at `https://<your-hostname>/admin`
+2. Review system checks and resolve warnings
+3. Confirm mail flow and queue behavior
+4. Confirm backup status and restore readiness
+
+## Quality Gates
+
+Pushes and pull requests to `main` run through automated quality controls:
+
+* Ruff lint and format checks
+* ShellCheck for setup/management scripts
+* Python syntax matrix (3.10 through 3.13)
+* pytest suite
+* Bandit static analysis
+* pip-audit dependency scanning
+* CodeQL analysis (push and scheduled)
+* Version synchronization checks across `VERSION`, `CHANGELOG.md`, and `setup/bootstrap.sh`
+
+Tagged releases (`v*`) re-run validation and publish GitHub release notes extracted from the top changelog section.
+
+## Documentation Index
+
+* Contribution guide: [CONTRIBUTING.md](CONTRIBUTING.md)
+* Security posture and disclosure policy: [security.md](security.md)
+* Code of conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+* Release history: [CHANGELOG.md](CHANGELOG.md)
+
+## Support And Contributions
+
+* Report issues: [GitHub Issues](https://github.com/tdhayer/mailinabox-guard/issues)
+* Security reporting process: [security.md](security.md)
+* Contribution workflow: [CONTRIBUTING.md](CONTRIBUTING.md)
+
+## License
+
+This project is dedicated to the public domain through [CC0 1.0](LICENSE).
+
+## Acknowledgements
+
+Mail-in-a-Box Guard is built on the foundation of [Mail-in-a-Box](https://github.com/mail-in-a-box/mailinabox).
