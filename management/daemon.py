@@ -1200,7 +1200,6 @@ class SilenceStdout:
 @authorized_personnel_only
 def mail_stats_api():
 	import mail_log
-	import sys
 	# Reset/configure globals in mail_log
 	mail_log.END_DATE = datetime.datetime.now()
 	mail_log.NOW = mail_log.END_DATE
@@ -1508,6 +1507,7 @@ def backup_stats_api():
 @authorized_personnel_only
 def spam_dmarc_stats_api():
 	dmarc_dir = os.path.join(env["STORAGE_ROOT"], "mail", "dmarc")
+	max_dmarc_xml_bytes = 5 * 1024 * 1024
 	
 	dmarc_stats = {
 		"total_messages": 0,
@@ -1523,7 +1523,10 @@ def spam_dmarc_stats_api():
 	
 	if os.path.exists(dmarc_dir):
 		import gzip, zipfile, glob
-		import xml.etree.ElementTree as ET
+		try:
+			from defusedxml import ElementTree as safe_et
+		except Exception:
+			import xml.etree.ElementTree as safe_et
 		
 		now = time.time()
 		thirty_days_ago = now - 30 * 86400
@@ -1539,21 +1542,30 @@ def spam_dmarc_stats_api():
 				content = None
 				if fpath.endswith(".gz") or fpath.endswith(".xml.gz"):
 					with gzip.open(fpath, "rb") as f:
-						content = f.read()
+						content = f.read(max_dmarc_xml_bytes + 1)
 				elif fpath.endswith(".zip"):
 					with zipfile.ZipFile(fpath, "r") as z:
 						for name in z.namelist():
 							if name.endswith(".xml"):
+								if z.getinfo(name).file_size > max_dmarc_xml_bytes:
+									app.logger.warning("DMARC report %s skipped: XML payload exceeds size limit (%s bytes).", os.path.basename(fpath), max_dmarc_xml_bytes)
+									continue
 								content = z.read(name)
 								break
 				else:
+					if os.path.getsize(fpath) > max_dmarc_xml_bytes:
+						app.logger.warning("DMARC report %s skipped: XML payload exceeds size limit (%s bytes).", os.path.basename(fpath), max_dmarc_xml_bytes)
+						continue
 					with open(fpath, "rb") as f:
-						content = f.read()
+						content = f.read(max_dmarc_xml_bytes + 1)
 						
 				if not content:
 					continue
+				if len(content) > max_dmarc_xml_bytes:
+					app.logger.warning("DMARC report %s skipped: XML payload exceeds size limit (%s bytes).", os.path.basename(fpath), max_dmarc_xml_bytes)
+					continue
 					
-				root = ET.fromstring(content)  # nosec B314
+				root = safe_et.fromstring(content)
 				dmarc_stats["reports_count"] += 1
 				
 				for record in root.findall(".//record"):
@@ -1601,8 +1613,9 @@ def spam_dmarc_stats_api():
 							policy_dkim = policy.find("dkim")
 							if policy_dkim is not None and policy_dkim.text == "pass":
 								dmarc_stats["by_domain"][domain]["dkim_pass"] += count
-			except Exception:
-				pass
+			except Exception as e:
+				app.logger.warning("Failed to parse DMARC report %s: %s", os.path.basename(fpath), e)
+				continue
 				
 	top_ips = sorted(dmarc_stats["by_source_ip"].items(), key=lambda x: x[1], reverse=True)[:10]
 	dmarc_stats["top_source_ips"] = [{"ip": ip, "count": count} for ip, count in top_ips]
@@ -1660,6 +1673,8 @@ def system_audit_log():
 		per_page = int(request.args.get('per_page', 50))
 	except ValueError:
 		return ("Invalid pagination parameters.", 400)
+	page = max(1, page)
+	per_page = min(max(1, per_page), 200)
 	action = request.args.get('action', 'all')
 	return json_response(audit.get_audit_log(page, per_page, action, env))
 

@@ -78,14 +78,7 @@ indent-style = "tab"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-python_files = [
-    "test_dashboard_apis.py",
-    "test_status_checks.py",
-    "test_mfa.py",
-    "test_dmarc_alerts.py",
-    "test_password_policy.py",
-    "test_audit.py",
-    "test_spam_config_path.py"
-]
+python_files = ["test_*.py"]
+addopts = "--ignore=tests/test_dns.py --ignore=tests/test_mail.py --ignore=tests/test_smtp_server.py"
 
 

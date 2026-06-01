@@ -176,7 +176,6 @@ def _get_greylisting_delay():
 def _set_greylisting_delay(delay, env):
 	"""Update the --delay value in /etc/default/postgrey."""
 	# Read the current POSTGREY_OPTS line, replace the --delay value.
-	storage_root = env.get("STORAGE_ROOT", "/home/user-data")
 	try:
 		with open(POSTGREY_DEFAULTS, "r", encoding="utf-8") as f:
 			content = f.read()

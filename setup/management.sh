@@ -45,6 +45,7 @@ hide_output $venv/bin/pip install --upgrade pip
 hide_output $venv/bin/pip install --upgrade \
 	rtyaml "email_validator>=1.0.0" "exclusiveprocess" \
 	flask dnspython python-dateutil expiringdict gunicorn \
+	defusedxml \
 	qrcode[pil] pyotp "webauthn>=2.7.0" "cbor2<6.0.0" \
 	"idna>=2.0.0" "cryptography>=44.0.2" psutil postfix-mta-sts-resolver \
 	b2sdk boto3
@@ -70,14 +71,14 @@ jquery_version=2.2.4
 jquery_url=https://code.jquery.com
 
 # Get jQuery
-wget_verify $jquery_url/jquery-$jquery_version.min.js 69bb69e25ca7d5ef0935317584e6153f3fd9a88c $assets_dir/jquery.min.js
+wget_verify $jquery_url/jquery-$jquery_version.min.js 05b85d96f41fff14d8f608dad03ab71e2c1017c2da0914d7c59291bad7a54f8e $assets_dir/jquery.min.js
 
 # Bootstrap CDN URL
 bootstrap_version=3.4.1
 bootstrap_url=https://github.com/twbs/bootstrap/releases/download/v$bootstrap_version/bootstrap-$bootstrap_version-dist.zip
 
 # Get Bootstrap
-wget_verify $bootstrap_url 0bb64c67c2552014d48ab4db81c2e8c01781f580 /tmp/bootstrap.zip
+wget_verify $bootstrap_url d49793cf773cbd393ac2cf340c3b4ddab5365fa7c292098ac07e12eab3efd92e /tmp/bootstrap.zip
 unzip -q /tmp/bootstrap.zip -d $assets_dir
 mv $assets_dir/bootstrap-$bootstrap_version-dist $assets_dir/bootstrap
 rm -f /tmp/bootstrap.zip
@@ -87,7 +88,7 @@ chartjs_version=3.9.1
 chartjs_url=https://cdnjs.cloudflare.com/ajax/libs/Chart.js/$chartjs_version/chart.min.js
 
 # Get Chart.js
-wget_verify $chartjs_url 42c91fe9394dde71adaf0b8f965e81f92fb8a2fb $assets_dir/chart.min.js
+wget_verify $chartjs_url fbc45926e6b46845a0f905552a0e0b1331049bff1115ecf94dbe0904d895e710 $assets_dir/chart.min.js
 
 # Create an init script to start the management daemon and keep it
 # running after a reboot.

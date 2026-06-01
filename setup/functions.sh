@@ -186,18 +186,26 @@ function input_menu {
 
 function wget_verify {
 	# Downloads a file from the web and checks that it matches
-	# a provided hash. If the comparison fails, exit immediately.
+	# a provided hash (SHA-256 preferred). If the comparison fails, exit immediately.
 	URL=$1
 	HASH=$2
 	DEST=$3
+	if [ ${#HASH} -eq 64 ]; then
+		HASH_CMD=sha256sum
+	elif [ ${#HASH} -eq 40 ]; then
+		HASH_CMD=sha1sum
+	else
+		echo "Unsupported hash length for $URL. Use SHA-256 (64 chars) or SHA-1 (40 chars)."
+		exit 1
+	fi
 	CHECKSUM="$HASH  $DEST"
 	rm -f "$DEST"
 	hide_output wget -O "$DEST" "$URL"
-	if ! echo "$CHECKSUM" | sha1sum --check --strict > /dev/null; then
+	if ! echo "$CHECKSUM" | "$HASH_CMD" --check --strict > /dev/null; then
 		echo "------------------------------------------------------------"
 		echo "Download of $URL did not match expected checksum."
 		echo "Found:"
-		sha1sum "$DEST"
+		"$HASH_CMD" "$DEST"
 		echo
 		echo "Expected:"
 		echo "$CHECKSUM"

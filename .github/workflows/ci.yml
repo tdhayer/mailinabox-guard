@@ -28,6 +28,9 @@ jobs:
       - name: Run Ruff Lint
         run: ruff check .
 
+      - name: Run Ruff Core Checks on Management & Tests
+        run: ruff check management tests --select F,E9
+
       - name: Run Ruff Format Check
         run: ruff format --check .
 
@@ -98,7 +101,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pytest rtyaml "email_validator>=1.0.0" flask dnspython python-dateutil expiringdict "qrcode[pil]" pyotp "webauthn>=2.7.0" "cbor2<6.0.0" "idna>=2.0.0" "cryptography>=44.0.2" psutil b2sdk boto3
+          pip install pytest rtyaml "email_validator>=1.0.0" flask dnspython python-dateutil expiringdict defusedxml "qrcode[pil]" pyotp "webauthn>=2.7.0" "cbor2<6.0.0" "idna>=2.0.0" "cryptography>=44.0.2" psutil b2sdk boto3
 
       - name: Run unit tests with pytest
         run: python -m pytest

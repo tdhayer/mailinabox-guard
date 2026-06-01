@@ -245,7 +245,7 @@ function do_login() {
 
       // Remember the credentials.
       if (typeof localStorage != 'undefined' && typeof sessionStorage != 'undefined') {
-        if ($('#loginRemember').val()) {
+        if ($('#loginRemember').is(':checked')) {
           localStorage.setItem("miab-cp-credentials", JSON.stringify(api_credentials));
           sessionStorage.removeItem("miab-cp-credentials");
         } else {
