@@ -50,6 +50,19 @@ if [[ $EUID -ne 0 ]]; then
 	exit 1
 fi
 
+# Default source repository for Guard.
+if [ "$SOURCE" == "" ]; then
+	SOURCE=https://github.com/tdhayer/mailinabox-guard
+fi
+
+# If a directory exists but it isn't a git checkout, stop and ask the user
+# to move it out of the way rather than guessing how to proceed.
+if [ -d "$HOME/mailinabox" ] && [ ! -d "$HOME/mailinabox/.git" ]; then
+	echo "Found $HOME/mailinabox but it is not a git repository."
+	echo "Please move it aside and run this script again."
+	exit 1
+fi
+
 # Clone the Mail-in-a-Box repository if it doesn't exist.
 if [ ! -d "$HOME/mailinabox" ]; then
 	if [ ! -f /usr/bin/git ]; then
@@ -57,10 +70,6 @@ if [ ! -d "$HOME/mailinabox" ]; then
 		apt-get -q -q update
 		DEBIAN_FRONTEND=noninteractive apt-get -q -q install -y git < /dev/null
 		echo
-	fi
-
-	if [ "$SOURCE" == "" ]; then
-		SOURCE=https://github.com/tdhayer/mailinabox-guard
 	fi
 
 	echo "Downloading Mail-in-a-Box $TAG. . ."
@@ -75,6 +84,26 @@ fi
 
 # Change directory to it.
 cd "$HOME/mailinabox" || exit
+
+# Migration preflight for existing installs: if the requested tag doesn't
+# exist on the current origin, switch origin to SOURCE and preserve the
+# previous origin as upstream.
+CURRENT_ORIGIN=$(git remote get-url origin 2>/dev/null || /bin/true)
+if [ -n "$CURRENT_ORIGIN" ] && [ "$CURRENT_ORIGIN" != "$SOURCE" ]; then
+	if ! git ls-remote --exit-code --tags origin "refs/tags/$TAG" > /dev/null 2>&1; then
+		echo ""
+		echo "Existing repository origin ($CURRENT_ORIGIN) does not provide tag $TAG."
+		echo "Switching origin to $SOURCE for migration to Mail-in-a-Box Guard."
+
+		if git remote | grep -q "^upstream$"; then
+			git remote set-url upstream "$CURRENT_ORIGIN"
+		else
+			git remote add upstream "$CURRENT_ORIGIN"
+		fi
+
+		git remote set-url origin "$SOURCE"
+	fi
+fi
 
 # Update it. Always re-fetch the tag so that force-pushed tags (moved to a
 # new commit) are picked up — comparing tag names alone would miss this.
